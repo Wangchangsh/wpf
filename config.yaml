@@ -1,4 +1,4 @@
-baseURL: https://example.com
+baseURL: https://wangchangsheng.netlify.app/
 languageCode: en
 defaultContentLanguage: en
 title: Wangchangsheng
@@ -31,7 +31,7 @@ menu:
       weight: 4
 params:
   author: Fastbyte01
-  avatar: /images/me/genetic.jpg
+  avatar: /images/me/TreeOfLife.jpg
   baidu_verification: ''
   bing_verification: ''
   cdn_url: ''
@@ -76,9 +76,7 @@ params:
       4.0 International License.
   since: 2012
   social:
-    Facebook: xxxx
-    GitHub: xxxx
-    Linkedin: xxxx
+    GitHub: Wangchangsh
     Twitter: xxxx
   socialShare: yes
   subtitle: "重剑无锋"
@@ -97,4 +95,4 @@ params:
     visitor: yes
   yandex_verification: ''
 author:
-  name: Fastbyte01
+  name: Wangchangsheng
