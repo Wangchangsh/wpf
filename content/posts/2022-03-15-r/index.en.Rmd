@@ -14,7 +14,7 @@ featured_image: ~
 
 在数据分析过程中，总是需要批量操作，如批量保存文件或批量作图。baseR的解法十分简单，for或while循环即可，但不够优雅。下面以tidyverse自带数据diamonds为例，以优雅的tidyverse流代码实现批量操作。
 
-# 加载包和数据
+## 加载包和数据
 
 ```{r library, echo = TRUE, message = FALSE, warning = FALSE, collapse = TRUE}
 library(tidyverse)
@@ -22,7 +22,7 @@ library(ggprism)
 data("diamonds")
 ```
 
-# 批量保存
+## 批量保存
 
 ```{r multiple write, echo = TRUE, eval = FALSE}
 diamonds %>%
@@ -34,7 +34,7 @@ diamonds %>%
                       quote = FALSE))
 ```
 
-# 批量作图
+## 批量作图
 
 ```{r multiple plot, echo = TRUE}
 diamonds %>%

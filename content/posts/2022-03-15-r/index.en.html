@@ -16,15 +16,14 @@ featured_image: ~
 <div id="前言" class="section level1">
 <h1>前言</h1>
 <p>在数据分析过程中，总是需要批量操作，如批量保存文件或批量作图。baseR的解法十分简单，for或while循环即可，但不够优雅。下面以tidyverse自带数据diamonds为例，以优雅的tidyverse流代码实现批量操作。</p>
-</div>
-<div id="加载包和数据" class="section level1">
-<h1>加载包和数据</h1>
+<div id="加载包和数据" class="section level2">
+<h2>加载包和数据</h2>
 <pre class="r"><code>library(tidyverse)
 library(ggprism)
 data(&quot;diamonds&quot;)</code></pre>
 </div>
-<div id="批量保存" class="section level1">
-<h1>批量保存</h1>
+<div id="批量保存" class="section level2">
+<h2>批量保存</h2>
 <pre class="r"><code>diamonds %&gt;%
   group_nest(cut) %&gt;%
   pwalk(~ write.table(x = .y,
@@ -33,8 +32,8 @@ data(&quot;diamonds&quot;)</code></pre>
                       row.names = FALSE,
                       quote = FALSE))</code></pre>
 </div>
-<div id="批量作图" class="section level1">
-<h1>批量作图</h1>
+<div id="批量作图" class="section level2">
+<h2>批量作图</h2>
 <pre class="r"><code>diamonds %&gt;%
   group_nest(cut) %&gt;%
   mutate(plot = map(data, ~ ggplot(data = .x) + 
@@ -46,4 +45,5 @@ data(&quot;diamonds&quot;)</code></pre>
         .f = ~ print(.y))</code></pre>
 <p><img src="{{< blogdown/postref >}}index.en_files/figure-html/multiple%20plot-1.png" width="672" /><img src="{{< blogdown/postref >}}index.en_files/figure-html/multiple%20plot-2.png" width="672" /><img src="{{< blogdown/postref >}}index.en_files/figure-html/multiple%20plot-3.png" width="672" /><img src="{{< blogdown/postref >}}index.en_files/figure-html/multiple%20plot-4.png" width="672" /><img src="{{< blogdown/postref >}}index.en_files/figure-html/multiple%20plot-5.png" width="672" /></p>
 <p>若想保存图片，将print替代为ggsave(filename = str_c(path, .x, “.pdf”), plot = .y)。</p>
+</div>
 </div>

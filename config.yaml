@@ -1,96 +1,81 @@
-baseURL: https://wangchangsheng.netlify.app/
-languageCode: en
-defaultContentLanguage: en
-title: Wangchangsheng
-theme: KeepIt
-paginate: 12
-enableEmoji: yes
-enableRobotsTXT: yes
-googleAnalytics: ''
-disqusShortname: yourdiscussshortname
-sitemap:
-  changefreq: monthly
-  filename: sitemap.xml
-  priority: 0.5
-blackfriday:
-  hrefTargetBlank: yes
-  nofollowLinks: yes
-  noreferrerLinks: yes
-Permalinks:
-  posts: /:year/:filename/
-menu:
-  main:
-    - name: Blog
-      url: /posts/
-      weight: 1
-    - name: Categories
-      url: /categories/
-      weight: 3
-    - name: About
-      url: /about
-      weight: 4
+baseurl: "https://wangchangsheng.netlify.app/"
+languageCode: "en-us"
+title: "Wangchangsheng"
+theme: "hugo-tania"
+paginate: 6
+
+disqusShortname: https-hugo-tania-netlify-app
+
 params:
-  author: Wangchangsheng
-  avatar: /images/me/TreeOfLife.jpg
-  baidu_verification: ''
-  bing_verification: ''
-  cdn_url: ''
-  dateFormatToUse: ''
-  description: ''
-  gitalk:
-    clientId: ''
-    clientSecret: ''
-    owner: ''
-    repo: ''
-  gitment:
-    clientId: ''
-    clientSecret: ''
-    owner: ''
-    repo: ''
-  google_verification: ''
-  gravatar: {}
-  home_mode: ''
-  image:
-    height: 600
-    url: cover.png
-    width: 800
-  keywords: ''
-  license: Released under <a rel="license external nofollow noopener noreffer" href="https://creativecommons.org/licenses/by-nc/4.0/"
-    target="_blank">CC BY-NC 4.0</a>
-  logo:
-    height: 40
-    url: logo.png
-    width: 127
-  pinterest_verification: ''
-  publisher:
-    logo:
-      height: 40
-      url: logo.png
-      width: 127
-    name: Wangchangsheng
-  share:
-    Twitter: yes
-    copyright: This work is licensed under a Creative Commons Attribution-NonCommercial
-      4.0 International License.
-  since: 2012
-  social:
-    GitHub: Wangchangsh
-    Twitter: xxxx
-  socialShare: yes
-  subtitle: "重剑无锋"
-  utterances:
-    owner: ''
-    repo: ''
-  valine:
-    appId: your appId
-    appKey: your appKey
-    avatar: mm
-    enable: no
-    language: en
-    notify: no
-    placeholder: your comments ...
-    verify: no
-    visitor: yes
-  yandex_verification: ''
-author:
-  name: Wangchangsheng
+  # Emoji will show before the blog title on site navbar.
+  titleEmoji:
+
+  # Logo will show before the blog title on site navbar.
+  titleLogo: TreeOfLife.jpg
+  
+  # Enable float footnotes.
+  # Default to true
+  enableFootnotes: true
+  
+  siteName: "Hugo Tania is Amazing"
+  siteDesc: "Hugo is Absurdly Fast!"
+  author: "Hugo Tania"
+
+  colorScheme:
+    # Enable toggle colorScheme
+    # Default to true
+    toggle: true
+    # Default colorScheme
+    # Default to auto
+    default: auto
+
+  # Limit how many categories filter show above search input.
+  # Default to 5
+  maxCategoryToShow: 10
+
+  # Show your socail information with icon on index bio with `_index.md` content.
+  socialOptions:
+    dev-to:
+    email:
+    facebook:
+    github: https://github.com/Wangchangsh
+    instagram:
+    linkedin:
+    medium:
+    stack-overflow:
+    steam:
+    telegram:
+    twitter:
+    twitch:
+    whatsapp:
+  
+  # Comments settings
+  comments:
+    enabled: true
+    provider: giscus
+
+    giscus:
+      repo: WingLim/hugo-tania
+      id: MDEwOlJlcG9zaXRvcnkzMTYyNjQzMDc=
+      category:
+        name: Comments
+        id: DIC_kwDOEtnPc84B_WKP
+
+menu:
+  header:
+    - name: Articles
+      url: "/articles/"
+  footer:
+    - name: RSS
+      url: "/index.xml"
+
+markup:
+  highlight:
+    noClasses: false
+    lineNos: true
+  goldmark:
+    renderer:
+      unsafe: true
+
+outputs:
+  home: ["HTML", "RSS", "JSON"]
