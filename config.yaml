@@ -30,7 +30,7 @@ menu:
       url: /about
       weight: 4
 params:
-  author: Fastbyte01
+  author: Wangchangsheng
   avatar: /images/me/TreeOfLife.jpg
   baidu_verification: ''
   bing_verification: ''
@@ -67,10 +67,8 @@ params:
       height: 40
       url: logo.png
       width: 127
-    name: Fastbyte01
+    name: Wangchangsheng
   share:
-    Facebook: yes
-    Linkedin: yes
     Twitter: yes
     copyright: This work is licensed under a Creative Commons Attribution-NonCommercial
       4.0 International License.

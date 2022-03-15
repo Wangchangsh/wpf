@@ -1,0 +1,49 @@
+---
+title: R语言批量操作
+author: wangchangsheng
+date: '2022-03-15'
+slug: []
+categories:
+  - R
+tags: []
+description: ~
+featured_image: ~
+---
+
+<script src="{{< blogdown/postref >}}index.en_files/header-attrs/header-attrs.js"></script>
+
+
+<div id="前言" class="section level1">
+<h1>前言</h1>
+<p>在数据分析过程中，总是需要批量操作，如批量保存文件或批量作图。baseR的解法十分简单，for或while循环即可，但不够优雅。下面以tidyverse自带数据diamonds为例，以优雅的tidyverse流代码实现批量操作。</p>
+</div>
+<div id="加载包和数据" class="section level1">
+<h1>加载包和数据</h1>
+<pre class="r"><code>library(tidyverse)
+library(ggprism)
+data(&quot;diamonds&quot;)</code></pre>
+</div>
+<div id="批量保存" class="section level1">
+<h1>批量保存</h1>
+<pre class="r"><code>diamonds %&gt;%
+  group_nest(cut) %&gt;%
+  pwalk(~ write.table(x = .y,
+                      file = str_c(path, .x, &quot;.txt&quot;),
+                      col.names = FALSE,
+                      row.names = FALSE,
+                      quote = FALSE))</code></pre>
+</div>
+<div id="批量作图" class="section level1">
+<h1>批量作图</h1>
+<pre class="r"><code>diamonds %&gt;%
+  group_nest(cut) %&gt;%
+  mutate(plot = map(data, ~ ggplot(data = .x) + 
+                      geom_boxplot(aes(x = clarity, y = price, fill = clarity)) +
+                      theme_prism() +
+                      scale_fill_prism(palette = &quot;winter_bright&quot;))) %&gt;%
+  walk2(.x = .$cut,
+        .y = .$plot,
+        .f = ~ print(.y))</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/multiple%20plot-1.png" width="672" /><img src="{{< blogdown/postref >}}index.en_files/figure-html/multiple%20plot-2.png" width="672" /><img src="{{< blogdown/postref >}}index.en_files/figure-html/multiple%20plot-3.png" width="672" /><img src="{{< blogdown/postref >}}index.en_files/figure-html/multiple%20plot-4.png" width="672" /><img src="{{< blogdown/postref >}}index.en_files/figure-html/multiple%20plot-5.png" width="672" /></p>
+<p>若想保存图片，将print替代为ggsave(filename = str_c(path, .x, “.pdf”), plot = .y)。</p>
+</div>
