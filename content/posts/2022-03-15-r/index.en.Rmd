@@ -4,8 +4,10 @@ author: wangchangsheng
 date: '2022-03-15'
 slug: []
 categories:
+  - R program
+tags: 
   - R
-tags: []
+  - Tidyverse
 description: ~
 featured_image: ~
 ---
@@ -27,11 +29,12 @@ data("diamonds")
 ```{r multiple write, echo = TRUE, eval = FALSE}
 diamonds %>%
   group_nest(cut) %>%
-  pwalk(~ write.table(x = .y,
-                      file = str_c(path, .x, ".txt"),
-                      col.names = FALSE,
-                      row.names = FALSE,
-                      quote = FALSE))
+  pwalk(.l = list(.$cut, .$data),
+        .f = ~ write.table(x = .y,
+                           file = str_c(path, .x, ".txt"),
+                           col.names = FALSE,
+                           row.names = FALSE,
+                           quote = FALSE))
 ```
 
 ## 批量作图
