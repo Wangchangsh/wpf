@@ -21,7 +21,7 @@ tags: []
 ```shell
 module load Singularity/3.1.1
 # 下载数据,若数据量大于20G需加-X参数
-awk -F ',' '{print $1}' sample.list|grep SRR|xargs singularity exec -e ~/Singularity_lib/download.sif prefetch 
+awk -F ',' '{print $1}' sample.list|grep SRR|xargs -n 1 singularity exec -e ~/Singularity_lib/download.sif prefetch 
 ## fastq-dump
 singularity exec -e ~/Singularity_lib/download.sif fastq-dump -A SRRXXX
 singularity exec -e ~/Singularity_lib/download.sif fastqer-dump -e threads SRRXXX
