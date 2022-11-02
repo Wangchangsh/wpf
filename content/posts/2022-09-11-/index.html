@@ -186,7 +186,7 @@ apply_mask_l mask_35_50.fa founder.pos &gt; foundermask.pos </code></pre>
 --recode 
 --out offspring_poly</code></pre>
 <ul>
-<li>分割染色体，并过滤偏分离标记</li>
+<li>分割染色体</li>
 </ul>
 <pre class="shell"><code>vcftools 
 --vcf offspring_poly.recode.vcf 
@@ -194,63 +194,21 @@ apply_mask_l mask_35_50.fa founder.pos &gt; foundermask.pos </code></pre>
 --recode-INFO-all 
 --recode 
 --out Chr1</code></pre>
-<pre class="r"><code>chisq &lt;- function(x) {
-  matrix &lt;- matrix(x, ncol = 2) %&gt;%
-    as_tibble() %&gt;%
-    filter(if_any(everything(), ~ . != 0))
-  return(chisq.test(matrix)$p.value)
-}
-
-library(tidyverse)
-library(vcfR)
-
-
-tmp &lt;- read.vcfR(&quot;Lychee/Data/geno/Chr1.recode.vcf&quot;) %&gt;%
-  extract.gt() %&gt;%
-  as_tibble(rownames = NA) %&gt;%
-  rownames_to_column(var = &quot;markername&quot;) %&gt;%
-  mutate(A = rowSums(across(.cols = starts_with(&quot;F&quot;), `%in%`, &quot;0/0&quot;)),
-         H = rowSums(across(.cols = starts_with(&quot;F&quot;), `%in%`, &quot;0/1&quot;)),
-         B = rowSums(across(.cols = starts_with(&quot;F&quot;), `%in%`, &quot;1/1&quot;))) %&gt;%
-  select(-starts_with(&quot;F&quot;)) %&gt;%
-  mutate(number = A + H + B,
-         EA = case_when(
-           SYH == &quot;0/1&quot; &amp; ZNX == &quot;0/1&quot; ~ number/4,
-           SYH == &quot;0/0&quot; &amp; ZNX == &quot;0/1&quot; ~ number/2,
-           SYH == &quot;0/1&quot; &amp; ZNX == &quot;0/0&quot; ~ number/2,
-           SYH == &quot;1/1&quot; &amp; ZNX == &quot;0/1&quot; ~ 0,
-           SYH == &quot;0/1&quot; &amp; ZNX == &quot;1/1&quot; ~ 0
-         ),
-         EH = number/2,
-         EB = case_when(
-           SYH == &quot;0/1&quot; &amp; ZNX == &quot;0/1&quot; ~ number/4,
-           SYH == &quot;0/0&quot; &amp; ZNX == &quot;0/1&quot; ~ 0,
-           SYH == &quot;0/1&quot; &amp; ZNX == &quot;0/0&quot; ~ 0,
-           SYH == &quot;1/1&quot; &amp; ZNX == &quot;0/1&quot; ~ number/2,
-           SYH == &quot;0/1&quot; &amp; ZNX == &quot;1/1&quot; ~ number/2
-         )) %&gt;%
-  rowwise() %&gt;%
-  mutate(pval = chisq(c(A, H, B, EA, EH, EB))) %&gt;%
-  filter(pval &gt; 0.001) %&gt;%
-  mutate(chrom = sapply(str_split(markername, &quot;_&quot;), `[`, 1),
-         pos = sapply(str_split(markername, &quot;_&quot;), `[`, 2) %&gt;% as.numeric()) %&gt;%
-  select(chrom, pos)
-  
-write_tsv(tmp, file = &quot;Chr1.pos&quot;, col_names = FALSE)</code></pre>
-<pre class="shell"><code>vcftools 
---vcf Chr1.recode.vcf 
---positions Chr1.pos 
---recode-INFO-all 
---recode 
---out Chr1_chisq</code></pre>
 </div>
 <div id="parentcall2格式转换" class="section level4">
 <h4>ParentCall2格式转换</h4>
-<p>输入为十进制文件，压缩文件读取出错</p>
+<p>输入为十进制文件，<strong>压缩文件会导致读取出错</strong></p>
 <pre class="shell"><code>java -cp ~/software/LepMAP3/bin/ ParentCall2 
 data=pedigree.txt 
-vcfFile=Chr1_chisq.recode.vcf 
-removeNonInformative=1 &gt; Chr1_chisq.call</code></pre>
+vcfFile=Chr1.recode.vcf 
+removeNonInformative=1 &gt; Chr1.call</code></pre>
+</div>
+<div id="filtering2过滤偏分离标记" class="section level4">
+<h4>Filtering2过滤偏分离标记</h4>
+<pre class="shell"><code>java -cp ~/software/LepMAP3/bin/ Filtering2
+data=Chr1.call
+removeNonInformative=1
+dataTolerance=0.001 &gt; Chr1_chisq.call</code></pre>
 </div>
 </div>
 </div>
@@ -442,7 +400,9 @@ improveOrder=0 &gt; Chr1_chisq_sex.order</code></pre>
 </div>
 <div id="转换基因型" class="section level2">
 <h2>转换基因型</h2>
-<p>利用脚本map2genotypes.awk转换基因型。</p>
+<ul>
+<li>利用脚本map2genotypes.awk转换基因型。</li>
+</ul>
 <pre class="awk"><code>#converts phased data to &quot;genotypes&quot;
 #usage: 
 #java ... OrderMarkers2 ... outputPhasedData=1 &gt; order_with_phase_LM3.txt
@@ -514,22 +474,52 @@ Chr1_chisq_sex.geno
 
 awk -vfullData=1 -f map2genotypes.awk Chr1_chisq_Avesex.order &gt; 
 Chr1_chisq_sexAve.geno</code></pre>
+<ul>
+<li>去除重负和偏分离位点，符合GACD输入标准</li>
+</ul>
+<pre class="r"><code>geno &lt;- fread(&quot;Lychee/Output/geno.tsv&quot;) %&gt;%
+  as_tibble() %&gt;%
+  mutate(chrom = sapply(str_split(marker, &quot;_&quot;), `[`, 1))
+
+# 去除重复
+tmp &lt;- geno %&gt;%
+  unite(col = &quot;sig&quot;, names(select(., starts_with(&quot;F&quot;))), sep = &quot;-&quot;, remove = FALSE) %&gt;%
+  mutate(leadsig = lead(sig, default = &quot;0&quot;))  %&gt;%
+  group_by(chrom) %&gt;%
+  filter(sig != leadsig) %&gt;%
+  select(marker, chrom, pos, starts_with(&quot;F&quot;))
+
+# 去除极端偏分离位点
+tmp2 &lt;- tmp %&gt;%
+  rowwise() %&gt;%
+  mutate(t = length(unique(c_across(cols = starts_with(&quot;F&quot;))))) %&gt;%
+  filter(t &gt; 1) %&gt;%
+  select(-t)</code></pre>
 </div>
 <div id="作图" class="section level2">
 <h2>作图</h2>
-<p>利用R/qtl包作图</p>
-<pre class="r"><code>library(tidyverse)
-library(qtl)
+<div id="遗传连锁图" class="section level3">
+<h3>遗传连锁图</h3>
+<p>利用R/qtl包来绘制中性遗传连锁图谱</p>
+<pre class="r"><code>suppressWarnings(suppressMessages(library(tidyverse)))
+suppressWarnings(suppressMessages(library(qtl)))
+suppressWarnings(suppressMessages(library(data.table)))
+suppressWarnings(suppressMessages(library(ggprism)))
 
-file &lt;- fs::dir_ls(path = &quot;Lychee/Data/geno/&quot;, glob = &quot;*Ave*&quot;)
+path &lt;- &quot;C:/Users/wpf/Desktop/project/Bipgenetic/&quot;
+
+file &lt;- fs::dir_ls(path = str_c(path, &quot;Lychee/Data/geno/&quot;), glob = &quot;*Ave*&quot;)
 
 tmp &lt;- map_dfr(.x = file,
-               .f = ~ read_tsv(., skip = 1, col_select = c(1:4)),
+               .f = ~ read_tsv(., 
+                               skip = 1, 
+                               col_select = c(1:4),
+                               show_col_types = FALSE),
                .id = &quot;Chrtmp&quot;)
 
 tmp2 &lt;- tmp %&gt;%
   filter(MARKER != &quot;MARKER&quot;) %&gt;%
-  mutate(chrom = sapply(str_split(Chrtmp, &quot;/|_&quot;), `[`, 4),
+  mutate(chrom = sapply(str_split(str_replace(Chrtmp, path, &quot;&quot;), &quot;/|_&quot;), `[`, 4),
          markername = str_c(chrom, &quot;-&quot;, MARKER),
          chr = str_sub(chrom, 4) %&gt;% as.numeric(),
          pos = as.numeric(MALE_POS)) %&gt;%
@@ -539,5 +529,167 @@ tmp2 &lt;- tmp %&gt;%
 
 map &lt;- table2map(tmp2)
 plot.map(map)</code></pre>
-<p><img src="https://cdn.staticaly.com/gh/Wangchangsh/image@main/F1mapping/map.kxnr73qryuo.webp" /></p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
+</div>
+<div id="单家系全基因组基因型图" class="section level3">
+<h3>单家系全基因组基因型图</h3>
+<p>LepMap3输出默认的坐标和家系名称，根据实际坐标和名称对原始输出进行预处理</p>
+<pre class="r"><code>pos &lt;- fs::dir_ls(path = str_c(path, &quot;Lychee/Data/POS/&quot;))
+
+tmppos &lt;- map_dfr(.x = pos,
+                  .f = ~ read_tsv(., col_names = FALSE, show_col_types = FALSE),
+                  .id = NULL) %&gt;%
+  `colnames&lt;-`(c(&quot;chrom&quot;, &quot;pos&quot;)) %&gt;%
+  group_by(chrom) %&gt;%
+  mutate(id = row_number(),
+         markername = str_c(chrom, &quot;-&quot;, id),
+         marker = str_c(chrom, &quot;_&quot;, pos)) %&gt;%
+  ungroup() %&gt;%
+  select(markername, marker)
+
+file &lt;- fs::dir_ls(path = str_c(path, &quot;Lychee/Data/geno/&quot;), glob = &quot;*Ave*&quot;)
+
+taxa &lt;- read_tsv(file = str_c(path, &quot;Lychee/extraMaterials/renametaxa.txt&quot;),
+                 show_col_types = FALSE,
+                 col_names = FALSE)
+tmp &lt;- map_dfr(.x = file,
+               .f = ~ read_tsv(., skip = 1, show_col_types = FALSE),
+               .id = &quot;Chrtmp&quot;) %&gt;%
+  rename_with(.cols = taxa$X2, ~ taxa$X1) %&gt;%
+  filter(MARKER != &quot;MARKER&quot;) %&gt;%
+  mutate(chrom = sapply(str_split(str_replace(Chrtmp, path, &quot;&quot;), &quot;/|_&quot;), `[`, 4),
+         markername = str_c(chrom, &quot;-&quot;, MARKER),
+         chr = str_sub(chrom, start = 4) %&gt;% as.numeric(),
+         pos = as.numeric(MALE_POS)) %&gt;%
+  select(markername, chr, pos, starts_with(&quot;F&quot;), -FEMALE_POS) %&gt;%
+  mutate(across(.cols = starts_with(&quot;F&quot;),
+                ~ case_when(
+                  . == &quot;1 2&quot; ~ &quot;AD&quot;,
+                  . == &quot;1 1&quot; ~ &quot;AC&quot;,
+                  . == &quot;2 1&quot; ~ &quot;BC&quot;,
+                  . == &quot;2 2&quot; ~ &quot;BD&quot;
+                ))) %&gt;%
+  left_join(tmppos, by = &quot;markername&quot;) %&gt;%
+  group_by(chr) %&gt;%
+  mutate(end = sapply(str_split(marker, &quot;_&quot;), `[`, 2) %&gt;% as.numeric(),
+         start = lag(end, default = 0)) %&gt;%
+  ungroup() %&gt;%
+  select(marker, chr, start, end, starts_with(&quot;F&quot;))
+
+head(tmp)</code></pre>
+<pre><code>## # A tibble: 6 × 268
+##   marker   chr start   end F101  F10   F103  F104  F105  F107  F108  F109  F110 
+##   &lt;chr&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;
+## 1 Chr10…    10     0  2074 AD    AD    AD    BD    AD    BD    BD    BD    AC   
+## 2 Chr10…    10  2074 13977 AD    AD    AD    BD    AD    BD    BD    BD    AC   
+## 3 Chr10…    10 13977 32248 AD    AD    AD    BD    AD    BD    BD    BD    AC   
+## 4 Chr10…    10 32248 35953 AD    AD    AD    BD    AD    BD    BD    BD    AC   
+## 5 Chr10…    10 35953 53527 AD    AD    AD    BD    AD    BD    BD    BD    AC   
+## 6 Chr10…    10 53527 79901 AD    AD    AD    BD    AD    BD    BD    BD    AC   
+## # … with 255 more variables: F111 &lt;chr&gt;, F112 &lt;chr&gt;, F113 &lt;chr&gt;, F114 &lt;chr&gt;,
+## #   F115 &lt;chr&gt;, F116 &lt;chr&gt;, F118 &lt;chr&gt;, F119 &lt;chr&gt;, F1 &lt;chr&gt;, F120 &lt;chr&gt;,
+## #   F121 &lt;chr&gt;, F12 &lt;chr&gt;, F122 &lt;chr&gt;, F123 &lt;chr&gt;, F124 &lt;chr&gt;, F125 &lt;chr&gt;,
+## #   F126 &lt;chr&gt;, F127 &lt;chr&gt;, F128 &lt;chr&gt;, F129 &lt;chr&gt;, F131 &lt;chr&gt;, F13 &lt;chr&gt;,
+## #   F134 &lt;chr&gt;, F135 &lt;chr&gt;, F136 &lt;chr&gt;, F140 &lt;chr&gt;, F141 &lt;chr&gt;, F142 &lt;chr&gt;,
+## #   F143 &lt;chr&gt;, F144 &lt;chr&gt;, F145 &lt;chr&gt;, F146 &lt;chr&gt;, F147 &lt;chr&gt;, F148 &lt;chr&gt;,
+## #   F149 &lt;chr&gt;, F151 &lt;chr&gt;, F15 &lt;chr&gt;, F152 &lt;chr&gt;, F153 &lt;chr&gt;, F154 &lt;chr&gt;, …</code></pre>
+<p>预处理文件第一列为标记，第二列染色体，第三四列为BIN的起始结束坐标，第五行后是家系基因型。</p>
+<pre class="r"><code>genome &lt;- tmp %&gt;%
+  group_by(chr) %&gt;%
+  summarise(hapA = max(end),
+            hapB = max(end)) %&gt;%
+  pivot_longer(cols = -chr,
+               names_to = &quot;Hap&quot;,
+               values_to = &quot;len&quot;)  #基础骨架
+prefix &lt;- tmp %&gt;%
+  select(-starts_with(&quot;F&quot;))
+
+names(tmp)[-c(1:3)] %&gt;%
+  map_dfc(~ tmp %&gt;%
+            select(all_of(.x)) %&gt;%
+            separate(col = .x,
+                     into = str_c(.x, c(&quot;_hapA&quot;, &quot;_hapB&quot;)),
+                     sep = 1)) %&gt;% #phasing haplotype
+  bind_cols(prefix) %&gt;%
+  pivot_longer(cols = starts_with(&quot;F&quot;),
+               names_to = c(&quot;taxa&quot;, &quot;Hap&quot;),
+               names_sep = &quot;_&quot;,
+               values_to = &quot;geno&quot;) %&gt;%
+  filter(taxa %in% c(&quot;F1&quot;, &quot;F2&quot;)) %&gt;% #以F1和F2作为图示案例
+  group_nest(taxa) %&gt;%
+  mutate(plot = map(data, ~ ggplot() + 
+                      geom_bar(data = genome,
+                               mapping = aes(x = chr, y = len/1e6, group = Hap),
+                               colour = &quot;white&quot;,
+                               stat = &quot;identity&quot;,
+                               fill = &quot;white&quot;,
+                               width = 0.4,
+                               position = position_dodge2(width = 0.5)) +
+                      scale_x_discrete(limits = str_c(&quot;Chr&quot;, seq(1, 15)),
+                                       position = &quot;top&quot;) + 
+                      scale_y_continuous(breaks = seq(0, 50, 5), # 酌情调整染色体数目和长度
+                                         trans = &quot;reverse&quot;,
+                                         expand = expansion(mult = c(0.05, 0))) + 
+                      theme_bw() +
+                      theme(legend.position = c(0.8, 0.2),
+                            plot.background = element_blank() ,
+                            panel.grid.major = element_blank(),
+                            panel.grid.minor = element_blank() ,
+                            panel.border = element_blank(), 
+                            axis.ticks.x = element_blank(),
+                            axis.line.y = element_line()) +
+                      xlab(NULL) + ylab(&quot;Loction (Mb)&quot;) +
+                      geom_rect(data = .x,
+                                mapping = aes(xmin = chr - 0.23,
+                                              xmax = chr + 0.23,
+                                              ymin = start/1e6,
+                                              ymax = end/1e6,
+                                              fill = geno,
+                                              group = Hap),
+                                position = position_dodge(width = 0.6)) +
+                      scale_fill_manual(values = c( &quot;#4197d8&quot;, &quot;#f8c120&quot;, &quot;#413496&quot;, &quot;#d60b6f&quot;),
+                                        name = &quot;Genotype&quot;))) %&gt;%
+  walk2(.x = .$taxa,
+        .y = .$plot,
+        .f = ~ print(.y))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-3-1.png" width="672" /><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-3-2.png" width="672" /></p>
+</div>
+<div id="qtl作图" class="section level3">
+<h3>QTL作图</h3>
+<p>利用GACD软件进行连锁分析</p>
+<pre class="r"><code>path2 &lt;- &quot;C:/Users/wpf/Desktop/project/WinQTLMAP/GACD/Lychee/CDQ/LycheeGACD/Results/LycheeGACD.ric&quot;
+
+tmp &lt;- fread(path2) %&gt;%
+  select(TraitName, Chromosome, Position, LOD) %&gt;%
+  group_by(TraitName) %&gt;%
+  mutate(pos = row_number()) %&gt;%
+  ungroup()
+
+axis &lt;- tmp %&gt;%
+  group_by(Chromosome) %&gt;%
+  summarise(center = mean(pos))
+
+tmp %&gt;%
+  filter(str_starts(TraitName, pattern = &quot;biyezhong&quot;)) %&gt;%
+  group_nest(TraitName) %&gt;%
+  mutate(plot = map(data, ~ ggplot() +
+                      geom_line(data = .x,
+                                mapping = aes(x = pos, y = LOD, colour = as.factor(Chromosome))) +
+                      geom_hline(yintercept = 2.5,
+                                 color = &quot;red&quot;,
+                                 linetype = &quot;dashed&quot;,
+                                 alpha = 0.5) +
+                      scale_x_continuous(labels = axis$Chromosome, 
+                                         breaks = axis$center) +
+                      scale_color_manual(values = rep(c(&quot;#4197d8&quot;, &quot;#f8c120&quot;, &quot;#413496&quot;, &quot;#495226&quot;, &quot;#d60b6f&quot;, &quot;#e66519&quot;, &quot;#d581b7&quot;, &quot;#83d3ad&quot;, &quot;#7c162c&quot;, &quot;#26755d&quot;), 12)) +
+                      theme_prism() +
+                      theme(legend.position = &quot;none&quot;,
+                            axis.ticks = element_blank()) +
+                      xlab(NULL) +
+                      ylab(&quot;LOD&quot;))) %&gt;%
+  walk2(.x = .$TraitName,
+        .y = .$plot,
+        .f = ~ print(.y))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-4-1.png" width="672" /><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-4-2.png" width="672" /><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-4-3.png" width="672" /><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-4-4.png" width="672" /></p>
+</div>
 </div>
