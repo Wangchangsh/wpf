@@ -12,6 +12,7 @@ tags:
 ## 前言
 
 植物的分子遗传研究的重要优势在于遗传群体的易得性。通过设计杂交混合不同来源亲本的基因组，自交获得一系列基因型和表型存在分离的作图群体。
+
 双亲群体经历的连续世代较少，连锁不平衡衰减较大，即重组事件少，重组片段大。重测序会产生全基因组接近饱和的变异，但二代测序易产生错误，导致错误分型，且相邻的SNP紧密连锁，不适用于关联分析和连锁分析。BIN是染色体上连续的不发生的片段，校正了错误分型，降低了计算消耗，是双亲群体重测序的常用手段。
 
 ## 数据准备
@@ -19,6 +20,7 @@ tags:
 ### founder多态性变异筛选
 
 + 初过滤标准为PASS，二等位，无缺失，次等位频率为50%，测序深度为平均测序深度的一半至两倍
+
 ```shell
 vcftools --vcf pop.snp.filt.vcf.gz
 --remove-filtered-all
@@ -34,16 +36,23 @@ vcftools --vcf pop.snp.filt.vcf.gz
 --recode 
 --out founder
 ```
+
 + 多态性变异筛选，去除存在杂合的变异
+
 ```shell
 grep -v "0/1" founder.recode.vcf|awk '{print$1"\t"$2}'|grep -v "#" > founder.pos
 ```
+
 + SNPable筛选高质量位点
+
 ```shell
 apply_mask_l mask_35_50.fa founder.pos > foundermask.pos
 ```
+
 ### offspring高质量变异鉴定
+
 + 初过滤标准为缺失率，maf和founder高质量位点
+
 ```shell
 vcftools
 --gzvcf pop.snp.filt.vcf.gz
@@ -53,7 +62,9 @@ vcftools
 --recode
 --out offspring_poly
 ```
+
 + 分割染色体
+
 ```shell
 vcftools
 --vcf offspring_poly.recode.vcf
@@ -61,6 +72,7 @@ vcftools
 --recode
 --out Chr1
 ```
+
 ## BIN型重建
 
 + vcf转换为SNPbinner输入文件
@@ -109,7 +121,9 @@ write_tsv(geno, file = opt$out)
 ```shell
 Rscript vcf2tsv.r -i Chr1.recode.vcf -a founderA -b founderB -o Chr1.tsv
 ```
+
 + snp to bin
+
 ```shell
 singularity exec -e ~/Singularity_lib/python2.sif python2.7 
 ~/software/SNPbinner/snpbinner crosspoints 
@@ -123,7 +137,9 @@ singularity exec -e ~/Singularity_lib/python2.sif python2.7
 -o Chr1-bin 
 -l 5000
 ```
+
 + bin型合并
+
 ```r
 library(tidyverse)
 
@@ -140,9 +156,13 @@ tmp <- map_dfr(.x = file,
          markername = str_c(chrom, bin_start, sep = "_")) %>%
   select(markername, chrom, everything(), -Chrtmp)
 ```
+
 ## 遗传作图
+
 ### 全基因组BIN图
+
 #### 单家系全基因组BIN图
+
 ```{r bip_indv_bin}
 suppressWarnings(suppressMessages(library(tidyverse)))
 suppressWarnings(suppressMessages(library(qtl)))
@@ -224,6 +244,7 @@ tmp %>%
         .y = .$plot,
         .f = ~ print(.y))
 ```
+
 #### 群体全基因组BIN图
 
 ```{r bip_pop_bin}
@@ -271,10 +292,13 @@ ggplot(data = tmp) +
         axis.text.x = element_blank()) +
   xlab(NULL) + ylab(NULL)
 ```
+
 ### 遗传连锁图
+
 利用QTL IciMapping软件计算遗传距离，构建遗传连锁图谱。
 
 + 遗传连锁图
+
 ```{r bip_genetic_map}
 map <- readxl::read_excel(path = str_c(path, "Rape/Output/map.xlsx")) %>%
   mutate(chrom = sapply(str_split(markername, "_"), `[`, 1)) %>%
@@ -284,7 +308,9 @@ map <- readxl::read_excel(path = str_c(path, "Rape/Output/map.xlsx")) %>%
 
 plot.map(map)
 ```
+
 + 共线性点图
+
 ```{r bip_synteny_dot}
 tmp <- map2table(map) %>%
   rownames_to_column(var = "markername") %>%
@@ -325,8 +351,11 @@ ggplot(data = tmp2, aes(x = gpos, y = ppos/1e6, colour = chr)) +
         axis.text.x = element_text(angle = 45, vjust = 0.6)) +
   xlab("linkage Group") + ylab("Genome")
 ```
+
 + 共线性圈图
+
 使用Tbtools,利用R处理出输入文件
+
 ```{r bip_synteny_circos, eval = FALSE}
 map <- readxl::read_excel(path = str_c(path, "Rape/Output/map.xlsx")) %>%
   mutate(chrom = sapply(str_split(markername, "_"), `[`, 1)) %>%
@@ -378,8 +407,11 @@ url <- "https://cdn.staticaly.com/gh/Wangchangsh/image@main/Rape-biparent/synten
 download.file(url = url, destfile = "synteny.jpg", mode = "wb")
 knitr::include_graphics("synteny.jpg")
 ```
+
 ### QTL作图
+
 利用QTL IciMapping软件的ICIM模型进行遗传作图
+
 ```{r bip_qtl}
 path <- "C:/Users/wpf/Desktop/project/WinQTLMAP/ICIM/Rape/BIP/RapeRIL/Results/RapeRIL.ric"
 tmp <- fread(path) %>%
