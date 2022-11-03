@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Lep-Map3 on Additive and Dominance</title>
+    <link>https://wangchangsheng.netlify.app/tags/lep-map3/</link>
+    <description>Recent content in Lep-Map3 on Additive and Dominance</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 03 Nov 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://wangchangsheng.netlify.app/tags/lep-map3/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>高杂合率F1群体的遗传作图</title>
+      <link>https://wangchangsheng.netlify.app/posts/2022-11-03-f1/</link>
+      <pubDate>Thu, 03 Nov 2022 00:00:00 +0000</pubDate>
+      
+      <guid>https://wangchangsheng.netlify.app/posts/2022-11-03-f1/</guid>
+      <description>前言植物的分子遗传研究的重要优势在于遗传群体的易得性。通过设计杂交混合不同来源亲本的基因组，自交获得一系列基因型和表型存在分离的作图群体。但生产上不依赖种子繁殖的高等植物基因组上往往具有较高的杂合率，且具有强的自交不亲和性，如土豆和柑橘。一般利用两个高度杂合的双亲杂交，构建杂种一代群体，用于育种和遗传分析。
+Lep-Map3是一款新颖免费的遗传作图软件，支持大量标记和个体的遗传图谱构建，尤其是低测序深度的全基因组测序数据。
+数据准备系谱系谱文件包含样本名及家系等相关信息，以tab为分隔符，示例如：
+CHRPOSFFFFFFFCHRPOSSYHZNXF1F10F101F103F104CHRPOS00ZNXZNXZNXZNXZNXCHRPOS00SYHSYHSYHSYHSYHCHRPOS2100000CHRPOS0000000line1：家系名称，可多父母多家系</description>
+    </item>
+    
+  </channel>
+</rss>

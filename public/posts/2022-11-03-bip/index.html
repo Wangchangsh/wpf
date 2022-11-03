@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en-us">
+    
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="theme-color" content="dark">
+    <title>双亲群体的遗传作图 | Additive and Dominance</title>
+
+    
+    
+    
+    <meta property="og:site_name" content="Hugo Tania is Amazing" />
+    <meta property="og:title" content="双亲群体的遗传作图 | Additive and Dominance"/>
+    <meta itemprop="name" content="双亲群体的遗传作图 | Additive and Dominance" />
+    <meta name="twitter:title" content="双亲群体的遗传作图 | Additive and Dominance" />
+    <meta name="application-name" content="双亲群体的遗传作图 | Additive and Dominance" /><meta name="twitter:card" content="summary"/>
+
+    <meta name="description" content="Hugo is Absurdly Fast!" />
+    <meta name="twitter:description" content="Hugo is Absurdly Fast!"/>
+    <meta itemprop="description" content="Hugo is Absurdly Fast!"/>
+    <meta property="og:description" content="Hugo is Absurdly Fast!" />
+
+    
+
+
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+    
+    <link rel="stylesheet" href="/sass/main.min.ab99ff095f832511e24ffb2fba2b51ad473b2f7e9301d674eba2c6c3a6e8bd81.css">
+    
+</head>
+    
+    <script>
+        (function() {
+            const colorSchemeKey = 'ThemeColorScheme';
+            if(!localStorage.getItem(colorSchemeKey)){
+                localStorage.setItem(colorSchemeKey, "auto");
+            }
+        })();
+    </script><script>
+    (function() {
+        const colorSchemeKey = 'ThemeColorScheme';
+        const colorSchemeItem = localStorage.getItem(colorSchemeKey);
+        const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
+
+        if (colorSchemeItem == 'dark' || colorSchemeItem === 'auto' && supportDarkMode) {
+            
+
+            document.documentElement.dataset.userColorScheme = 'dark';
+        } else {
+            document.documentElement.dataset.userColorScheme = 'light';
+        }
+    })();
+</script>
+
+
+    <body class="dark">
+        <nav class="navbar">
+    <div class="container">
+        <div class="flex">
+            <div>
+                <a class="brand" href="/">
+                    
+                    
+                        <img src="/TreeOfLife.jpg" />
+                    
+                    Additive and Dominance
+                    </a>
+            </div>
+            <div class="flex">
+                
+                <a href="/articles/">Articles</a>
+                
+                
+                    <button id="dark-mode-button">
+                    <svg class="light" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" focusable="false" width="1em" height="1em" style="-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); transform: rotate(360deg);" preserveAspectRatio="xMidYMid meet" viewBox="0 0 36 36"><path fill="#FFD983" d="M30.312.776C32 19 20 32 .776 30.312c8.199 7.717 21.091 7.588 29.107-.429C37.9 21.867 38.03 8.975 30.312.776z"/><path d="M30.705 15.915a1.163 1.163 0 1 0 1.643 1.641a1.163 1.163 0 0 0-1.643-1.641zm-16.022 14.38a1.74 1.74 0 0 0 0 2.465a1.742 1.742 0 1 0 0-2.465zm13.968-2.147a2.904 2.904 0 0 1-4.108 0a2.902 2.902 0 0 1 0-4.107a2.902 2.902 0 0 1 4.108 0a2.902 2.902 0 0 1 0 4.107z" fill="#FFCC4D"/><rect x="0" y="0" width="36" height="36" fill="rgba(0, 0, 0, 0)" /></svg>
+                    <svg class="dark" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" focusable="false" width="1em" height="1em" style="-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); transform: rotate(360deg);" preserveAspectRatio="xMidYMid meet" viewBox="0 0 36 36"><path fill="#FFD983" d="M16 2s0-2 2-2s2 2 2 2v2s0 2-2 2s-2-2-2-2V2zm18 14s2 0 2 2s-2 2-2 2h-2s-2 0-2-2s2-2 2-2h2zM4 16s2 0 2 2s-2 2-2 2H2s-2 0-2-2s2-2 2-2h2zm5.121-8.707s1.414 1.414 0 2.828s-2.828 0-2.828 0L4.878 8.708s-1.414-1.414 0-2.829c1.415-1.414 2.829 0 2.829 0l1.414 1.414zm21 21s1.414 1.414 0 2.828s-2.828 0-2.828 0l-1.414-1.414s-1.414-1.414 0-2.828s2.828 0 2.828 0l1.414 1.414zm-.413-18.172s-1.414 1.414-2.828 0s0-2.828 0-2.828l1.414-1.414s1.414-1.414 2.828 0s0 2.828 0 2.828l-1.414 1.414zm-21 21s-1.414 1.414-2.828 0s0-2.828 0-2.828l1.414-1.414s1.414-1.414 2.828 0s0 2.828 0 2.828l-1.414 1.414zM16 32s0-2 2-2s2 2 2 2v2s0 2-2 2s-2-2-2-2v-2z"/><circle fill="#FFD983" cx="18" cy="18" r="10"/><rect x="0" y="0" width="36" height="36" fill="rgba(0, 0, 0, 0)" /></svg>
+                    </button>
+                
+            </div>
+            </div>
+    </div>
+</nav>
+
+        <main>
+            
+<div class="container">
+    <article>
+        <header class="article-header">
+            <div class="thumb">
+                <div>
+                    <h1>双亲群体的遗传作图</h1>
+                    <div class="post-meta">
+                        <div>
+                            
+                            
+                            By wangchangsheng | <time>November 03, 2022</time>
+                            | 7 minutes
+                        </div>
+                        <div class="tags">
+                            
+                            <a href="/tags/genetic-map/">genetic map</a>
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+    </article>
+
+    <div class="article-post">
+    
+
+
+<div id="前言" class="section level2">
+<h2>前言</h2>
+<p>植物的分子遗传研究的重要优势在于遗传群体的易得性。通过设计杂交混合不同来源亲本的基因组，自交获得一系列基因型和表型存在分离的作图群体。
+双亲群体经历的连续世代较少，连锁不平衡衰减较大，即重组事件少，重组片段大。重测序会产生全基因组接近饱和的变异，但二代测序易产生错误，导致错误分型，且相邻的SNP紧密连锁，不适用于关联分析和连锁分析。BIN是染色体上连续的不发生的片段，校正了错误分型，降低了计算消耗，是双亲群体重测序的常用手段。</p>
+</div>
+<div id="数据准备" class="section level2">
+<h2>数据准备</h2>
+<div id="founder多态性变异筛选" class="section level3">
+<h3>founder多态性变异筛选</h3>
+<ul>
+<li>初过滤标准为PASS，二等位，无缺失，次等位频率为50%，测序深度为平均测序深度的一半至两倍</li>
+</ul>
+<pre class="shell"><code>vcftools --vcf pop.snp.filt.vcf.gz
+--remove-filtered-all
+--max-alleles 2 
+--min-alleles 2 
+--max-missing 1
+--maf 0.4
+--max-maf 0.6
+--indv founderA
+--indv founderB
+--max-meanDP 120
+--min-meanDP 30
+--recode 
+--out founder</code></pre>
+<ul>
+<li>多态性变异筛选，去除存在杂合的变异</li>
+</ul>
+<pre class="shell"><code>grep -v &quot;0/1&quot; founder.recode.vcf|awk &#39;{print$1&quot;\t&quot;$2}&#39;|grep -v &quot;#&quot; &gt; founder.pos</code></pre>
+<ul>
+<li>SNPable筛选高质量位点</li>
+</ul>
+<pre class="shell"><code>apply_mask_l mask_35_50.fa founder.pos &gt; foundermask.pos</code></pre>
+</div>
+<div id="offspring高质量变异鉴定" class="section level3">
+<h3>offspring高质量变异鉴定</h3>
+<ul>
+<li>初过滤标准为缺失率，maf和founder高质量位点</li>
+</ul>
+<pre class="shell"><code>vcftools
+--gzvcf pop.snp.filt.vcf.gz
+--max-missing 0.8
+--maf 0.05
+--positions foundermask.pos
+--recode
+--out offspring_poly</code></pre>
+<ul>
+<li>分割染色体</li>
+</ul>
+<pre class="shell"><code>vcftools
+--vcf offspring_poly.recode.vcf
+--chr Chr1
+--recode
+--out Chr1</code></pre>
+</div>
+</div>
+<div id="bin型重建" class="section level2">
+<h2>BIN型重建</h2>
+<ul>
+<li>vcf转换为SNPbinner输入文件</li>
+</ul>
+<pre class="r"><code>suppressMessages(library(vcfR))
+suppressMessages(library(tidyverse))
+suppressMessages(library(optparse))
+
+option_list &lt;- list(
+  make_option(c(&quot;-i&quot;, &quot;--input&quot;), type = &quot;character&quot;, default = FALSE,
+              action = &quot;store&quot;, help = &quot;This is input vcf!&quot;),
+  make_option(c(&quot;-o&quot;, &quot;--out&quot;), type = &quot;character&quot;, default = FALSE,
+              action = &quot;store&quot;, help = &quot;This is output file!&quot;),
+  make_option(c(&quot;-a&quot;, &quot;--founderA&quot;), type = &quot;character&quot;, default = FALSE,
+              action = &quot;store&quot;, help = &quot;This is founder A!&quot;),
+  make_option(c(&quot;-b&quot;, &quot;--founderB&quot;), type = &quot;character&quot;, default = FALSE,
+              action = &quot;store&quot;, help = &quot;This is founder B!&quot;)
+)
+
+opt = parse_args(OptionParser(option_list = option_list, usage = &quot;This Script is for trans vcf to tsv!&quot;))
+
+vcf &lt;- read.vcfR(opt$input)
+
+geno &lt;- vcf %&gt;%
+  extract.gt() %&gt;%
+  as_tibble(rownames = NA) %&gt;%
+  rownames_to_column(var = &quot;markername&quot;) %&gt;%
+  mutate(across(.cols = -markername,
+                ~ str_replace_all(., pattern = &quot;\\|&quot;, replacement = &quot;\\/&quot;))) %&gt;%
+  rename(founderA = !!sym(opt$founderA),
+         founderB = !!sym(opt$founderB)) %&gt;%
+  mutate(across(.cols = -markername,
+                ~ dplyr::case_when(
+                  . == founderA ~ &quot;a&quot;,
+                  . == founderB ~ &quot;b&quot;,
+                  . == &quot;0/1&quot; ~ &quot;h&quot;,
+                  TRUE ~ &quot;-&quot;
+                ))) %&gt;%
+  mutate(chrom = sapply(str_split(markername, &quot;_&quot;), `[`, 1) %&gt;% str_replace(pattern = &quot;scaffold&quot;, replacement = &quot;&quot;),
+         position = sapply(str_split(markername, &quot;_&quot;), `[`, 2)) %&gt;%
+  select(markername, chrom, position, founderA, founderB, everything())
+
+write_tsv(geno, file = opt$out)</code></pre>
+<pre class="shell"><code>Rscript vcf2tsv.r -i Chr1.recode.vcf -a founderA -b founderB -o Chr1.tsv</code></pre>
+<ul>
+<li>snp to bin</li>
+</ul>
+<pre class="shell"><code>singularity exec -e ~/Singularity_lib/python2.sif python2.7 
+~/software/SNPbinner/snpbinner crosspoints 
+-i Chr1.tsv 
+-o Chr1-crosspoints 
+-r 0.02 
+-l 38004428
+singularity exec -e ~/Singularity_lib/python2.sif python2.7 
+~/software/SNPbinner/snpbinner bins 
+-i Chr1-crosspoints 
+-o Chr1-bin 
+-l 5000</code></pre>
+<ul>
+<li>bin型合并</li>
+</ul>
+<pre class="r"><code>library(tidyverse)
+
+file &lt;- fs::dir_ls(path = &quot;../../project/Bipgenetic/Rape/Data/bin/&quot;)
+
+tmp &lt;- map_dfr(.x = file,
+               .f = ~ read.csv(., header = FALSE) %&gt;%
+                 pivot_longer(cols = -V1) %&gt;%
+                 pivot_wider(names_from = V1,
+                             values_from = value) %&gt;%
+                 select(-name),
+               .id = &quot;Chrtmp&quot;) %&gt;%
+  mutate(chrom = str_sub(Chrtmp, start = -10, end = -5),
+         markername = str_c(chrom, bin_start, sep = &quot;_&quot;)) %&gt;%
+  select(markername, chrom, everything(), -Chrtmp)</code></pre>
+</div>
+<div id="遗传作图" class="section level2">
+<h2>遗传作图</h2>
+<div id="全基因组bin图" class="section level3">
+<h3>全基因组BIN图</h3>
+<div id="单家系全基因组bin图" class="section level4">
+<h4>单家系全基因组BIN图</h4>
+<pre class="r"><code>suppressWarnings(suppressMessages(library(tidyverse)))
+suppressWarnings(suppressMessages(library(qtl)))
+suppressWarnings(suppressMessages(library(data.table)))
+suppressWarnings(suppressMessages(library(ggprism)))
+
+path &lt;- &quot;C:/Users/wpf/Desktop/project/Bipgenetic/&quot;
+
+geno &lt;- readxl::read_excel(path = str_c(path, &quot;Rape/Output/geno.xlsx&quot;)) %&gt;%
+  as_tibble() %&gt;%
+  mutate(across(.cols = -c(markername, chrom, starts_with(&quot;bin&quot;)),
+                ~ case_when(
+                  . == 0 ~ &quot;AA&quot;,
+                  . == 2 ~ &quot;BB&quot;,
+                  . == 1 ~ &quot;AB&quot;
+                )))
+
+prefix &lt;- geno %&gt;%
+  select(markername, chrom, starts_with(&quot;bin&quot;))
+
+tmp &lt;- geno %&gt;%
+  select(-c(markername, chrom, starts_with(&quot;bin&quot;)))
+
+tmp &lt;- names(geno)[-c(1:5)] %&gt;%
+  map_dfc( ~ geno %&gt;%
+             select(all_of(.x)) %&gt;%
+             separate(col  = .x,
+                      into = str_c(.x, c(&quot;_HapA&quot;, &quot;_HapB&quot;)),
+                      sep = 1)) %&gt;%
+  bind_cols(prefix) %&gt;%
+  pivot_longer(cols = -c(markername, chrom, starts_with(&quot;bin&quot;)),
+               names_to = c(&quot;taxa&quot;, &quot;Hap&quot;),
+               names_sep = &quot;_&quot;,
+               values_to = &quot;geno&quot;)
+  
+genome &lt;- tmp %&gt;%
+  group_by(chrom, Hap) %&gt;%
+  summarise(len = max(bin_end)) %&gt;%
+  ungroup() %&gt;%
+  mutate(chr = sort(rep(seq(1, 19), 2)))</code></pre>
+<pre><code>## `summarise()` has grouped output by &#39;chrom&#39;. You can override using the
+## `.groups` argument.</code></pre>
+<pre class="r"><code>tmp %&gt;%
+  left_join(genome, by = c(&quot;chrom&quot;, &quot;Hap&quot;)) %&gt;%
+  filter(taxa %in% c(0, 1)) %&gt;% #作图示例
+  group_nest(taxa) %&gt;%
+  mutate(plot = map(data, ~ ggplot() +
+                      geom_bar(data = genome,
+                               mapping = aes(x = chr, y = len/1e6, group = Hap),
+                               colour = &quot;white&quot;,
+                               stat = &quot;identity&quot;,
+                               fill = &quot;white&quot;,
+                               width = 0.4,
+                               position = position_dodge2(width = 0.5)) +
+                      scale_x_discrete(limits = unique(genome$chrom),
+                                       position = &quot;top&quot;) + 
+                      scale_y_continuous(breaks = seq(0, 80, 10),
+                                         trans = &quot;reverse&quot;,
+                                         expand = expansion(mult = c(0.05, 0))) +
+                      theme_bw() +
+                      theme(legend.position = c(0.8, 0.2),
+                            plot.background = element_blank() ,
+                            panel.grid.major = element_blank(),
+                            panel.grid.minor = element_blank() ,
+                            panel.border = element_blank(), 
+                            axis.ticks.x = element_blank(),
+                            axis.line.y = element_line()) +
+                      xlab(NULL) + ylab(&quot;Loction (Mb)&quot;) +
+                      geom_rect(data = .x,
+                                mapping = aes(xmin = chr - 0.23,
+                                              xmax = chr + 0.23,
+                                              ymin = bin_start/1e6,
+                                              ymax = bin_end/1e6,
+                                              fill = geno,
+                                              group = Hap),
+                                position = position_dodge(width = 0.6)) +
+                      scale_fill_manual(values = c(&quot;#4197d8&quot;, &quot;#f8c120&quot;),
+                                        name = &quot;Genotype&quot;))) %&gt;%
+  walk2(.x = .$taxa,
+        .y = .$plot,
+        .f = ~ print(.y))</code></pre>
+<p><img src="https://wangchangsheng.netlify.app/posts/2022-11-03-bip/index_files/figure-html/bip_indv_bin-1.png" width="672" /><img src="https://wangchangsheng.netlify.app/posts/2022-11-03-bip/index_files/figure-html/bip_indv_bin-2.png" width="672" />
+#### 群体全基因组BIN图</p>
+<pre class="r"><code>geno &lt;- readxl::read_excel(path = str_c(path, &quot;Rape/Output/geno.xlsx&quot;)) %&gt;%
+  select(-markername, -bin_center, -B409, -`375`) %&gt;%
+  pivot_longer(cols = -c(chrom, starts_with(&quot;bin&quot;)),
+               names_to = &quot;taxa&quot;, 
+               values_to = &quot;geno&quot;) %&gt;%
+  mutate(ind = as.numeric(taxa),
+         indd = ind + 1)
+
+bin &lt;- geno %&gt;%
+  group_by(chrom) %&gt;%
+  summarise(pos = max(bin_end)) %&gt;%
+  mutate(poscum = cumsum(lag(pos, default = 0)),
+         add =  4e6,
+         addcum = cumsum(lag(add, default = 0)),
+         cum = poscum + addcum) %&gt;%
+  select(chrom, cum)
+
+tmp &lt;- geno %&gt;%
+  left_join(bin, by = &quot;chrom&quot;) %&gt;%
+  mutate(start = bin_start + cum,
+         end = bin_end + cum)
+
+axis &lt;- tmp %&gt;%
+  group_by(chrom) %&gt;%
+  summarise(center = mean(end))
+
+ggplot(data = tmp) +
+  geom_rect(mapping = aes(xmin = ind,
+                          xmax = indd,
+                          ymin = start/1e6,
+                          ymax = end/1e6,
+                          fill = geno)) +
+  scale_y_continuous(breaks = axis$center/1e6, labels = axis$chrom) +
+  scale_x_continuous(expand = expansion(mult = c(-0.05, 0))) +
+  scale_fill_manual(values = c(&quot;#4197d8&quot;,&quot;grey60&quot;,&quot;#f8c120&quot;)) +
+  theme_bw() +
+  theme(legend.position = &quot;none&quot;,
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text.x = element_blank()) +
+  xlab(NULL) + ylab(NULL)</code></pre>
+<p><img src="https://wangchangsheng.netlify.app/posts/2022-11-03-bip/index_files/figure-html/bip_pop_bin-1.png" width="672" />
+### 遗传连锁图
+利用QTL IciMapping软件计算遗传距离，构建遗传连锁图谱。</p>
+<ul>
+<li>遗传连锁图</li>
+</ul>
+<pre class="r"><code>map &lt;- readxl::read_excel(path = str_c(path, &quot;Rape/Output/map.xlsx&quot;)) %&gt;%
+  mutate(chrom = sapply(str_split(markername, &quot;_&quot;), `[`, 1)) %&gt;%
+  select(markername, chrom, pos) %&gt;%
+  column_to_rownames(var = &quot;markername&quot;) %&gt;%
+  table2map()
+
+plot.map(map)</code></pre>
+<p><img src="https://wangchangsheng.netlify.app/posts/2022-11-03-bip/index_files/figure-html/bip_genetic_map-1.png" width="672" />
++ 共线性点图</p>
+<pre class="r"><code>tmp &lt;- map2table(map) %&gt;%
+  rownames_to_column(var = &quot;markername&quot;) %&gt;%
+  mutate(position = sapply(str_split(markername, &quot;_&quot;), `[`, 2))
+
+genetic &lt;- tmp %&gt;%
+  group_by(chr) %&gt;%
+  summarise(gpos = max(pos)) %&gt;%
+  mutate(gposcum = cumsum(lag(gpos, default = 0))) %&gt;%
+  select(chr, gposcum)
+
+physic &lt;- tmp %&gt;%
+  group_by(chr) %&gt;%
+  summarise(ppos = max(as.numeric(position))) %&gt;%
+  mutate(pposcum = cumsum(lag(ppos, default = 0))) %&gt;%
+  select(chr, pposcum)
+
+tmp2 &lt;- tmp %&gt;%
+  left_join(genetic, by = &quot;chr&quot;) %&gt;%
+  left_join(physic, by = &quot;chr&quot;) %&gt;%
+  mutate(ppos = as.numeric(position) + pposcum,
+         gpos = pos + gposcum)
+
+
+axis &lt;- tmp2 %&gt;%
+  group_by(chr) %&gt;%
+  summarise(xcenter = mean(gpos),
+            ycenter = mean(ppos)/1e6)
+
+ggplot(data = tmp2, aes(x = gpos, y = ppos/1e6, colour = chr)) +
+  geom_point() +
+  scale_x_continuous(breaks = axis$xcenter, labels = axis$chr) +
+  scale_y_continuous(breaks = axis$ycenter, labels = axis$chr) +
+  theme_prism() +
+  scale_color_manual(values = rep(c(&quot;#4197d8&quot;, &quot;#f8c120&quot;, &quot;#413496&quot;, &quot;#495226&quot;, &quot;#d60b6f&quot;, &quot;#e66519&quot;, &quot;#d581b7&quot;, &quot;#83d3ad&quot;, &quot;#7c162c&quot;, &quot;#26755d&quot;), 12)) +
+  theme(legend.position = &quot;none&quot;,
+        axis.ticks = element_blank(),
+        axis.text.x = element_text(angle = 45, vjust = 0.6)) +
+  xlab(&quot;linkage Group&quot;) + ylab(&quot;Genome&quot;)</code></pre>
+<p><img src="https://wangchangsheng.netlify.app/posts/2022-11-03-bip/index_files/figure-html/bip_synteny_dot-1.png" width="672" />
++ 共线性圈图
+使用Tbtools,利用R处理出输入文件</p>
+<pre class="r"><code>map &lt;- readxl::read_excel(path = str_c(path, &quot;Rape/Output/map.xlsx&quot;)) %&gt;%
+  mutate(chrom = sapply(str_split(markername, &quot;_&quot;), `[`, 1)) %&gt;%
+  select(markername, chrom, pos)
+
+genetic &lt;- map %&gt;%
+  group_by(chrom) %&gt;%
+  summarise(len = max(pos) * 1e6) %&gt;%
+  mutate(chrom = str_c(&quot;LG&quot;, str_pad(row_number(), width = 2, pad = 0)),
+         rgb = &quot;210,31,67&quot;) %&gt;%
+  select(chrom, len ,rgb)
+physic &lt;- map %&gt;%
+  mutate(pos = sapply(str_split(markername, &quot;_&quot;), `[`, 2) %&gt;% as.numeric()) %&gt;%
+  group_by(chrom) %&gt;%
+  summarise(len = max(pos),
+            rgb = &quot;51,31,209&quot;)
+
+genetic %&gt;%
+  bind_rows(physic) %&gt;%
+  write_tsv(., file = str_c(path, &quot;Rape/Output/Chrlen.tsv&quot;), col_names = FALSE)
+
+bin &lt;- readxl::read_excel(path = str_c(path,&quot;Rape/Output/geno.xlsx&quot;)) %&gt;%
+  select(markername, chrom, starts_with(&quot;bin&quot;))
+
+gmap &lt;- readxl::read_excel(path = str_c(path, &quot;Rape/Output/map.xlsx&quot;)) %&gt;%
+  group_by(chr) %&gt;%
+  mutate(chrom = str_c(&quot;LG&quot;, str_pad(chr, width = 2, pad = 0)),
+         start = lag(pos, default = 0) * 1e6,
+         end = pos * 1e6)
+
+color &lt;- tibble(
+  chrom.y = genetic$chrom,
+  rgb = c(&quot;65,151,216&quot;, &quot;248,193,32&quot;, &quot;65,52,150&quot;, &quot;73,82,38&quot;, &quot;214,11,111&quot;, &quot;230,101,25&quot;, &quot;213,129,183&quot;, &quot;131,211,173&quot;, &quot;124,22,44&quot;, &quot;38,117,93&quot;,
+          &quot;65,151,216&quot;, &quot;248,193,32&quot;, &quot;65,52,150&quot;, &quot;73,82,38&quot;, &quot;214,11,111&quot;, &quot;230,101,25&quot;, &quot;213,129,183&quot;, &quot;131,211,173&quot;, &quot;124,22,44&quot;)
+)
+
+res &lt;- bin %&gt;%
+  left_join(gmap, by = &quot;markername&quot;) %&gt;%
+  select(-markername, -bin_center, -pos, -chr) %&gt;%
+  mutate(across(.cols = - starts_with(&quot;chr&quot;),
+                ~ round(.))) %&gt;%
+  left_join(color, by = &quot;chrom.y&quot;)
+
+write_tsv(res, file = str_c(path, &quot;rape/Output/synteny.tsv&quot;), col_names = FALSE)</code></pre>
+<p><img src="synteny.jpg" width="944" />
+### QTL作图
+利用QTL IciMapping软件的ICIM模型进行遗传作图</p>
+<pre class="r"><code>path &lt;- &quot;C:/Users/wpf/Desktop/project/WinQTLMAP/ICIM/Rape/BIP/RapeRIL/Results/RapeRIL.ric&quot;
+tmp &lt;- fread(path) %&gt;%
+  mutate(chrom = sapply(str_split(LeftMarker, &quot;_&quot;), `[`, 1)) %&gt;%
+  select(TraitName, Chromosome, Position, LOD, chrom) %&gt;%
+  group_by(TraitName) %&gt;%
+  mutate(pos = row_number())
+
+axis &lt;- tmp %&gt;%
+  group_by(chrom) %&gt;%
+  summarise(center = mean(pos))
+
+tmp %&gt;%
+  ungroup() %&gt;%
+  filter(str_starts(TraitName, &quot;EaC&quot;)) %&gt;%
+  group_nest(TraitName) %&gt;%
+  mutate(plot = map(data, ~ ggplot() +
+                      geom_line(data = .x,
+                                mapping = aes(x = pos, 
+                                              y = LOD, 
+                                              colour = as.factor(Chromosome))) +
+                      geom_hline(yintercept = 2.5,
+                                 color = &quot;red&quot;,
+                                 linetype = &quot;dashed&quot;,
+                                 alpha = 0.5) +
+                      scale_x_continuous(labels = axis$chrom, 
+                                         breaks = axis$center) +
+                      scale_color_manual(values = rep(c(&quot;#4197d8&quot;, &quot;#f8c120&quot;, &quot;#413496&quot;, &quot;#495226&quot;, &quot;#d60b6f&quot;, &quot;#e66519&quot;, &quot;#d581b7&quot;, &quot;#83d3ad&quot;, &quot;#7c162c&quot;, &quot;#26755d&quot;), 12)) +
+                      theme_prism() +
+                      theme(legend.position = &quot;none&quot;,
+                            axis.ticks = element_blank(),
+                            axis.text.x = element_text(angle = 45)) +
+                      xlab(NULL) +
+                      ylab(&quot;LOD&quot;))) %&gt;%
+  walk2(.x = .$TraitName,
+        .y = .$plot,
+        .f = ~ print(.y))</code></pre>
+<p><img src="https://wangchangsheng.netlify.app/posts/2022-11-03-bip/index_files/figure-html/bip_qtl-1.png" width="672" /><img src="https://wangchangsheng.netlify.app/posts/2022-11-03-bip/index_files/figure-html/bip_qtl-2.png" width="672" /></p>
+</div>
+</div>
+</div>
+
+    </div>
+</div>
+
+<div class="container">
+    
+    <nav class="flex container suggested">
+        
+        <a rel="prev" href="/posts/2022-11-03-f1/" title="Previous post (older)">
+            <span>Previous</span>
+            高杂合率F1群体的遗传作图
+            </a>
+        
+        
+        
+    </nav>
+    
+</div>
+ 
+<div class="container">
+    
+    <script src="https://giscus.app/client.js" 
+        data-repo="WingLim/hugo-tania"
+        data-repo-id="MDEwOlJlcG9zaXRvcnkzMTYyNjQzMDc="
+        
+        data-category="Comments"
+        data-category-id="DIC_kwDOEtnPc84B_WKP"
+        
+        data-mapping="pathname"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-theme="light"
+        crossorigin="anonymous"
+        async
+        >
+</script>
+
+<script>
+    function setGiscusTeheme(theme) {
+        let giscus = document.querySelector('.giscus iframe');
+        if (giscus) {
+            giscus.contentWindow.postMessage(
+                {
+                    giscus: {
+                        setConfig: {
+                            theme: theme
+                        }
+                    }
+                },
+                'https://giscus.app'
+            )
+        }
+    }
+
+    addEventListener('message', event => {
+        if (event.origin !== 'https://giscus.app') return;
+        setGiscusTeheme(document.documentElement.dataset.userColorScheme)
+    });
+
+    window.addEventListener('onColorSchemeChange', (e) => {
+        setGiscusTeheme(e.detail)
+    })
+</script>
+
+</div>
+
+</main>
+
+
+        </main>
+        <footer class="footer flex">
+    <section class="container">
+        <nav class="footer-links">
+            
+            <a href="/index.xml">RSS</a>
+            
+        </nav>
+
+        
+    </section>
+    <script defer src="/ts/features.a534d05c446023fa2ae2a638f87cc2443ad8e49f6aaeb4d9f24ed61d53766712.js" 
+    data-enable-footnotes="true"
+    ></script>
+</footer>
+
+    </body>
+</html>

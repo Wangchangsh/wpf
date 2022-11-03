@@ -5,7 +5,1122 @@
     <description>Recent content on Additive and Dominance</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sun, 11 Sep 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://wangchangsheng.netlify.app/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Thu, 03 Nov 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://wangchangsheng.netlify.app/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+    <title>双亲群体的遗传作图</title>
+    <link>https://wangchangsheng.netlify.app/posts/2022-11-03-bip/</link>
+    <pubDate>Thu, 03 Nov 2022 00:00:00 +0000</pubDate>
+    <author>wangchangsheng</author>
+    <guid>https://wangchangsheng.netlify.app/posts/2022-11-03-bip/</guid>
+    <description>
+        
+
+
+&lt;div id=&#34;前言&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;前言&lt;/h2&gt;
+&lt;p&gt;植物的分子遗传研究的重要优势在于遗传群体的易得性。通过设计杂交混合不同来源亲本的基因组，自交获得一系列基因型和表型存在分离的作图群体。
+双亲群体经历的连续世代较少，连锁不平衡衰减较大，即重组事件少，重组片段大。重测序会产生全基因组接近饱和的变异，但二代测序易产生错误，导致错误分型，且相邻的SNP紧密连锁，不适用于关联分析和连锁分析。BIN是染色体上连续的不发生的片段，校正了错误分型，降低了计算消耗，是双亲群体重测序的常用手段。&lt;/p&gt;
+&lt;/div&gt;
+&lt;div id=&#34;数据准备&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;数据准备&lt;/h2&gt;
+&lt;div id=&#34;founder多态性变异筛选&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;founder多态性变异筛选&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;初过滤标准为PASS，二等位，无缺失，次等位频率为50%，测序深度为平均测序深度的一半至两倍&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;vcftools --vcf pop.snp.filt.vcf.gz
+--remove-filtered-all
+--max-alleles 2 
+--min-alleles 2 
+--max-missing 1
+--maf 0.4
+--max-maf 0.6
+--indv founderA
+--indv founderB
+--max-meanDP 120
+--min-meanDP 30
+--recode 
+--out founder&lt;/code&gt;&lt;/pre&gt;
+&lt;ul&gt;
+&lt;li&gt;多态性变异筛选，去除存在杂合的变异&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;grep -v &amp;quot;0/1&amp;quot; founder.recode.vcf|awk &amp;#39;{print$1&amp;quot;\t&amp;quot;$2}&amp;#39;|grep -v &amp;quot;#&amp;quot; &amp;gt; founder.pos&lt;/code&gt;&lt;/pre&gt;
+&lt;ul&gt;
+&lt;li&gt;SNPable筛选高质量位点&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;apply_mask_l mask_35_50.fa founder.pos &amp;gt; foundermask.pos&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;offspring高质量变异鉴定&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;offspring高质量变异鉴定&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;初过滤标准为缺失率，maf和founder高质量位点&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;vcftools
+--gzvcf pop.snp.filt.vcf.gz
+--max-missing 0.8
+--maf 0.05
+--positions foundermask.pos
+--recode
+--out offspring_poly&lt;/code&gt;&lt;/pre&gt;
+&lt;ul&gt;
+&lt;li&gt;分割染色体&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;vcftools
+--vcf offspring_poly.recode.vcf
+--chr Chr1
+--recode
+--out Chr1&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div id=&#34;bin型重建&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;BIN型重建&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;vcf转换为SNPbinner输入文件&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;suppressMessages(library(vcfR))
+suppressMessages(library(tidyverse))
+suppressMessages(library(optparse))
+
+option_list &amp;lt;- list(
+  make_option(c(&amp;quot;-i&amp;quot;, &amp;quot;--input&amp;quot;), type = &amp;quot;character&amp;quot;, default = FALSE,
+              action = &amp;quot;store&amp;quot;, help = &amp;quot;This is input vcf!&amp;quot;),
+  make_option(c(&amp;quot;-o&amp;quot;, &amp;quot;--out&amp;quot;), type = &amp;quot;character&amp;quot;, default = FALSE,
+              action = &amp;quot;store&amp;quot;, help = &amp;quot;This is output file!&amp;quot;),
+  make_option(c(&amp;quot;-a&amp;quot;, &amp;quot;--founderA&amp;quot;), type = &amp;quot;character&amp;quot;, default = FALSE,
+              action = &amp;quot;store&amp;quot;, help = &amp;quot;This is founder A!&amp;quot;),
+  make_option(c(&amp;quot;-b&amp;quot;, &amp;quot;--founderB&amp;quot;), type = &amp;quot;character&amp;quot;, default = FALSE,
+              action = &amp;quot;store&amp;quot;, help = &amp;quot;This is founder B!&amp;quot;)
+)
+
+opt = parse_args(OptionParser(option_list = option_list, usage = &amp;quot;This Script is for trans vcf to tsv!&amp;quot;))
+
+vcf &amp;lt;- read.vcfR(opt$input)
+
+geno &amp;lt;- vcf %&amp;gt;%
+  extract.gt() %&amp;gt;%
+  as_tibble(rownames = NA) %&amp;gt;%
+  rownames_to_column(var = &amp;quot;markername&amp;quot;) %&amp;gt;%
+  mutate(across(.cols = -markername,
+                ~ str_replace_all(., pattern = &amp;quot;\\|&amp;quot;, replacement = &amp;quot;\\/&amp;quot;))) %&amp;gt;%
+  rename(founderA = !!sym(opt$founderA),
+         founderB = !!sym(opt$founderB)) %&amp;gt;%
+  mutate(across(.cols = -markername,
+                ~ dplyr::case_when(
+                  . == founderA ~ &amp;quot;a&amp;quot;,
+                  . == founderB ~ &amp;quot;b&amp;quot;,
+                  . == &amp;quot;0/1&amp;quot; ~ &amp;quot;h&amp;quot;,
+                  TRUE ~ &amp;quot;-&amp;quot;
+                ))) %&amp;gt;%
+  mutate(chrom = sapply(str_split(markername, &amp;quot;_&amp;quot;), `[`, 1) %&amp;gt;% str_replace(pattern = &amp;quot;scaffold&amp;quot;, replacement = &amp;quot;&amp;quot;),
+         position = sapply(str_split(markername, &amp;quot;_&amp;quot;), `[`, 2)) %&amp;gt;%
+  select(markername, chrom, position, founderA, founderB, everything())
+
+write_tsv(geno, file = opt$out)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;Rscript vcf2tsv.r -i Chr1.recode.vcf -a founderA -b founderB -o Chr1.tsv&lt;/code&gt;&lt;/pre&gt;
+&lt;ul&gt;
+&lt;li&gt;snp to bin&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;singularity exec -e ~/Singularity_lib/python2.sif python2.7 
+~/software/SNPbinner/snpbinner crosspoints 
+-i Chr1.tsv 
+-o Chr1-crosspoints 
+-r 0.02 
+-l 38004428
+singularity exec -e ~/Singularity_lib/python2.sif python2.7 
+~/software/SNPbinner/snpbinner bins 
+-i Chr1-crosspoints 
+-o Chr1-bin 
+-l 5000&lt;/code&gt;&lt;/pre&gt;
+&lt;ul&gt;
+&lt;li&gt;bin型合并&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;library(tidyverse)
+
+file &amp;lt;- fs::dir_ls(path = &amp;quot;../../project/Bipgenetic/Rape/Data/bin/&amp;quot;)
+
+tmp &amp;lt;- map_dfr(.x = file,
+               .f = ~ read.csv(., header = FALSE) %&amp;gt;%
+                 pivot_longer(cols = -V1) %&amp;gt;%
+                 pivot_wider(names_from = V1,
+                             values_from = value) %&amp;gt;%
+                 select(-name),
+               .id = &amp;quot;Chrtmp&amp;quot;) %&amp;gt;%
+  mutate(chrom = str_sub(Chrtmp, start = -10, end = -5),
+         markername = str_c(chrom, bin_start, sep = &amp;quot;_&amp;quot;)) %&amp;gt;%
+  select(markername, chrom, everything(), -Chrtmp)&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;遗传作图&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;遗传作图&lt;/h2&gt;
+&lt;div id=&#34;全基因组bin图&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;全基因组BIN图&lt;/h3&gt;
+&lt;div id=&#34;单家系全基因组bin图&#34; class=&#34;section level4&#34;&gt;
+&lt;h4&gt;单家系全基因组BIN图&lt;/h4&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;suppressWarnings(suppressMessages(library(tidyverse)))
+suppressWarnings(suppressMessages(library(qtl)))
+suppressWarnings(suppressMessages(library(data.table)))
+suppressWarnings(suppressMessages(library(ggprism)))
+
+path &amp;lt;- &amp;quot;C:/Users/wpf/Desktop/project/Bipgenetic/&amp;quot;
+
+geno &amp;lt;- readxl::read_excel(path = str_c(path, &amp;quot;Rape/Output/geno.xlsx&amp;quot;)) %&amp;gt;%
+  as_tibble() %&amp;gt;%
+  mutate(across(.cols = -c(markername, chrom, starts_with(&amp;quot;bin&amp;quot;)),
+                ~ case_when(
+                  . == 0 ~ &amp;quot;AA&amp;quot;,
+                  . == 2 ~ &amp;quot;BB&amp;quot;,
+                  . == 1 ~ &amp;quot;AB&amp;quot;
+                )))
+
+prefix &amp;lt;- geno %&amp;gt;%
+  select(markername, chrom, starts_with(&amp;quot;bin&amp;quot;))
+
+tmp &amp;lt;- geno %&amp;gt;%
+  select(-c(markername, chrom, starts_with(&amp;quot;bin&amp;quot;)))
+
+tmp &amp;lt;- names(geno)[-c(1:5)] %&amp;gt;%
+  map_dfc( ~ geno %&amp;gt;%
+             select(all_of(.x)) %&amp;gt;%
+             separate(col  = .x,
+                      into = str_c(.x, c(&amp;quot;_HapA&amp;quot;, &amp;quot;_HapB&amp;quot;)),
+                      sep = 1)) %&amp;gt;%
+  bind_cols(prefix) %&amp;gt;%
+  pivot_longer(cols = -c(markername, chrom, starts_with(&amp;quot;bin&amp;quot;)),
+               names_to = c(&amp;quot;taxa&amp;quot;, &amp;quot;Hap&amp;quot;),
+               names_sep = &amp;quot;_&amp;quot;,
+               values_to = &amp;quot;geno&amp;quot;)
+  
+genome &amp;lt;- tmp %&amp;gt;%
+  group_by(chrom, Hap) %&amp;gt;%
+  summarise(len = max(bin_end)) %&amp;gt;%
+  ungroup() %&amp;gt;%
+  mutate(chr = sort(rep(seq(1, 19), 2)))&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;## `summarise()` has grouped output by &amp;#39;chrom&amp;#39;. You can override using the
+## `.groups` argument.&lt;/code&gt;&lt;/pre&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;tmp %&amp;gt;%
+  left_join(genome, by = c(&amp;quot;chrom&amp;quot;, &amp;quot;Hap&amp;quot;)) %&amp;gt;%
+  filter(taxa %in% c(0, 1)) %&amp;gt;% #作图示例
+  group_nest(taxa) %&amp;gt;%
+  mutate(plot = map(data, ~ ggplot() +
+                      geom_bar(data = genome,
+                               mapping = aes(x = chr, y = len/1e6, group = Hap),
+                               colour = &amp;quot;white&amp;quot;,
+                               stat = &amp;quot;identity&amp;quot;,
+                               fill = &amp;quot;white&amp;quot;,
+                               width = 0.4,
+                               position = position_dodge2(width = 0.5)) +
+                      scale_x_discrete(limits = unique(genome$chrom),
+                                       position = &amp;quot;top&amp;quot;) + 
+                      scale_y_continuous(breaks = seq(0, 80, 10),
+                                         trans = &amp;quot;reverse&amp;quot;,
+                                         expand = expansion(mult = c(0.05, 0))) +
+                      theme_bw() +
+                      theme(legend.position = c(0.8, 0.2),
+                            plot.background = element_blank() ,
+                            panel.grid.major = element_blank(),
+                            panel.grid.minor = element_blank() ,
+                            panel.border = element_blank(), 
+                            axis.ticks.x = element_blank(),
+                            axis.line.y = element_line()) +
+                      xlab(NULL) + ylab(&amp;quot;Loction (Mb)&amp;quot;) +
+                      geom_rect(data = .x,
+                                mapping = aes(xmin = chr - 0.23,
+                                              xmax = chr + 0.23,
+                                              ymin = bin_start/1e6,
+                                              ymax = bin_end/1e6,
+                                              fill = geno,
+                                              group = Hap),
+                                position = position_dodge(width = 0.6)) +
+                      scale_fill_manual(values = c(&amp;quot;#4197d8&amp;quot;, &amp;quot;#f8c120&amp;quot;),
+                                        name = &amp;quot;Genotype&amp;quot;))) %&amp;gt;%
+  walk2(.x = .$taxa,
+        .y = .$plot,
+        .f = ~ print(.y))&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&#34;https://wangchangsheng.netlify.app/posts/2022-11-03-bip/index_files/figure-html/bip_indv_bin-1.png&#34; width=&#34;672&#34; /&gt;&lt;img src=&#34;https://wangchangsheng.netlify.app/posts/2022-11-03-bip/index_files/figure-html/bip_indv_bin-2.png&#34; width=&#34;672&#34; /&gt;
+#### 群体全基因组BIN图&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;geno &amp;lt;- readxl::read_excel(path = str_c(path, &amp;quot;Rape/Output/geno.xlsx&amp;quot;)) %&amp;gt;%
+  select(-markername, -bin_center, -B409, -`375`) %&amp;gt;%
+  pivot_longer(cols = -c(chrom, starts_with(&amp;quot;bin&amp;quot;)),
+               names_to = &amp;quot;taxa&amp;quot;, 
+               values_to = &amp;quot;geno&amp;quot;) %&amp;gt;%
+  mutate(ind = as.numeric(taxa),
+         indd = ind + 1)
+
+bin &amp;lt;- geno %&amp;gt;%
+  group_by(chrom) %&amp;gt;%
+  summarise(pos = max(bin_end)) %&amp;gt;%
+  mutate(poscum = cumsum(lag(pos, default = 0)),
+         add =  4e6,
+         addcum = cumsum(lag(add, default = 0)),
+         cum = poscum + addcum) %&amp;gt;%
+  select(chrom, cum)
+
+tmp &amp;lt;- geno %&amp;gt;%
+  left_join(bin, by = &amp;quot;chrom&amp;quot;) %&amp;gt;%
+  mutate(start = bin_start + cum,
+         end = bin_end + cum)
+
+axis &amp;lt;- tmp %&amp;gt;%
+  group_by(chrom) %&amp;gt;%
+  summarise(center = mean(end))
+
+ggplot(data = tmp) +
+  geom_rect(mapping = aes(xmin = ind,
+                          xmax = indd,
+                          ymin = start/1e6,
+                          ymax = end/1e6,
+                          fill = geno)) +
+  scale_y_continuous(breaks = axis$center/1e6, labels = axis$chrom) +
+  scale_x_continuous(expand = expansion(mult = c(-0.05, 0))) +
+  scale_fill_manual(values = c(&amp;quot;#4197d8&amp;quot;,&amp;quot;grey60&amp;quot;,&amp;quot;#f8c120&amp;quot;)) +
+  theme_bw() +
+  theme(legend.position = &amp;quot;none&amp;quot;,
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text.x = element_blank()) +
+  xlab(NULL) + ylab(NULL)&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&#34;https://wangchangsheng.netlify.app/posts/2022-11-03-bip/index_files/figure-html/bip_pop_bin-1.png&#34; width=&#34;672&#34; /&gt;
+### 遗传连锁图
+利用QTL IciMapping软件计算遗传距离，构建遗传连锁图谱。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;遗传连锁图&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;map &amp;lt;- readxl::read_excel(path = str_c(path, &amp;quot;Rape/Output/map.xlsx&amp;quot;)) %&amp;gt;%
+  mutate(chrom = sapply(str_split(markername, &amp;quot;_&amp;quot;), `[`, 1)) %&amp;gt;%
+  select(markername, chrom, pos) %&amp;gt;%
+  column_to_rownames(var = &amp;quot;markername&amp;quot;) %&amp;gt;%
+  table2map()
+
+plot.map(map)&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&#34;https://wangchangsheng.netlify.app/posts/2022-11-03-bip/index_files/figure-html/bip_genetic_map-1.png&#34; width=&#34;672&#34; /&gt;
++ 共线性点图&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;tmp &amp;lt;- map2table(map) %&amp;gt;%
+  rownames_to_column(var = &amp;quot;markername&amp;quot;) %&amp;gt;%
+  mutate(position = sapply(str_split(markername, &amp;quot;_&amp;quot;), `[`, 2))
+
+genetic &amp;lt;- tmp %&amp;gt;%
+  group_by(chr) %&amp;gt;%
+  summarise(gpos = max(pos)) %&amp;gt;%
+  mutate(gposcum = cumsum(lag(gpos, default = 0))) %&amp;gt;%
+  select(chr, gposcum)
+
+physic &amp;lt;- tmp %&amp;gt;%
+  group_by(chr) %&amp;gt;%
+  summarise(ppos = max(as.numeric(position))) %&amp;gt;%
+  mutate(pposcum = cumsum(lag(ppos, default = 0))) %&amp;gt;%
+  select(chr, pposcum)
+
+tmp2 &amp;lt;- tmp %&amp;gt;%
+  left_join(genetic, by = &amp;quot;chr&amp;quot;) %&amp;gt;%
+  left_join(physic, by = &amp;quot;chr&amp;quot;) %&amp;gt;%
+  mutate(ppos = as.numeric(position) + pposcum,
+         gpos = pos + gposcum)
+
+
+axis &amp;lt;- tmp2 %&amp;gt;%
+  group_by(chr) %&amp;gt;%
+  summarise(xcenter = mean(gpos),
+            ycenter = mean(ppos)/1e6)
+
+ggplot(data = tmp2, aes(x = gpos, y = ppos/1e6, colour = chr)) +
+  geom_point() +
+  scale_x_continuous(breaks = axis$xcenter, labels = axis$chr) +
+  scale_y_continuous(breaks = axis$ycenter, labels = axis$chr) +
+  theme_prism() +
+  scale_color_manual(values = rep(c(&amp;quot;#4197d8&amp;quot;, &amp;quot;#f8c120&amp;quot;, &amp;quot;#413496&amp;quot;, &amp;quot;#495226&amp;quot;, &amp;quot;#d60b6f&amp;quot;, &amp;quot;#e66519&amp;quot;, &amp;quot;#d581b7&amp;quot;, &amp;quot;#83d3ad&amp;quot;, &amp;quot;#7c162c&amp;quot;, &amp;quot;#26755d&amp;quot;), 12)) +
+  theme(legend.position = &amp;quot;none&amp;quot;,
+        axis.ticks = element_blank(),
+        axis.text.x = element_text(angle = 45, vjust = 0.6)) +
+  xlab(&amp;quot;linkage Group&amp;quot;) + ylab(&amp;quot;Genome&amp;quot;)&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&#34;https://wangchangsheng.netlify.app/posts/2022-11-03-bip/index_files/figure-html/bip_synteny_dot-1.png&#34; width=&#34;672&#34; /&gt;
++ 共线性圈图
+使用Tbtools,利用R处理出输入文件&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;map &amp;lt;- readxl::read_excel(path = str_c(path, &amp;quot;Rape/Output/map.xlsx&amp;quot;)) %&amp;gt;%
+  mutate(chrom = sapply(str_split(markername, &amp;quot;_&amp;quot;), `[`, 1)) %&amp;gt;%
+  select(markername, chrom, pos)
+
+genetic &amp;lt;- map %&amp;gt;%
+  group_by(chrom) %&amp;gt;%
+  summarise(len = max(pos) * 1e6) %&amp;gt;%
+  mutate(chrom = str_c(&amp;quot;LG&amp;quot;, str_pad(row_number(), width = 2, pad = 0)),
+         rgb = &amp;quot;210,31,67&amp;quot;) %&amp;gt;%
+  select(chrom, len ,rgb)
+physic &amp;lt;- map %&amp;gt;%
+  mutate(pos = sapply(str_split(markername, &amp;quot;_&amp;quot;), `[`, 2) %&amp;gt;% as.numeric()) %&amp;gt;%
+  group_by(chrom) %&amp;gt;%
+  summarise(len = max(pos),
+            rgb = &amp;quot;51,31,209&amp;quot;)
+
+genetic %&amp;gt;%
+  bind_rows(physic) %&amp;gt;%
+  write_tsv(., file = str_c(path, &amp;quot;Rape/Output/Chrlen.tsv&amp;quot;), col_names = FALSE)
+
+bin &amp;lt;- readxl::read_excel(path = str_c(path,&amp;quot;Rape/Output/geno.xlsx&amp;quot;)) %&amp;gt;%
+  select(markername, chrom, starts_with(&amp;quot;bin&amp;quot;))
+
+gmap &amp;lt;- readxl::read_excel(path = str_c(path, &amp;quot;Rape/Output/map.xlsx&amp;quot;)) %&amp;gt;%
+  group_by(chr) %&amp;gt;%
+  mutate(chrom = str_c(&amp;quot;LG&amp;quot;, str_pad(chr, width = 2, pad = 0)),
+         start = lag(pos, default = 0) * 1e6,
+         end = pos * 1e6)
+
+color &amp;lt;- tibble(
+  chrom.y = genetic$chrom,
+  rgb = c(&amp;quot;65,151,216&amp;quot;, &amp;quot;248,193,32&amp;quot;, &amp;quot;65,52,150&amp;quot;, &amp;quot;73,82,38&amp;quot;, &amp;quot;214,11,111&amp;quot;, &amp;quot;230,101,25&amp;quot;, &amp;quot;213,129,183&amp;quot;, &amp;quot;131,211,173&amp;quot;, &amp;quot;124,22,44&amp;quot;, &amp;quot;38,117,93&amp;quot;,
+          &amp;quot;65,151,216&amp;quot;, &amp;quot;248,193,32&amp;quot;, &amp;quot;65,52,150&amp;quot;, &amp;quot;73,82,38&amp;quot;, &amp;quot;214,11,111&amp;quot;, &amp;quot;230,101,25&amp;quot;, &amp;quot;213,129,183&amp;quot;, &amp;quot;131,211,173&amp;quot;, &amp;quot;124,22,44&amp;quot;)
+)
+
+res &amp;lt;- bin %&amp;gt;%
+  left_join(gmap, by = &amp;quot;markername&amp;quot;) %&amp;gt;%
+  select(-markername, -bin_center, -pos, -chr) %&amp;gt;%
+  mutate(across(.cols = - starts_with(&amp;quot;chr&amp;quot;),
+                ~ round(.))) %&amp;gt;%
+  left_join(color, by = &amp;quot;chrom.y&amp;quot;)
+
+write_tsv(res, file = str_c(path, &amp;quot;rape/Output/synteny.tsv&amp;quot;), col_names = FALSE)&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&#34;synteny.jpg&#34; width=&#34;944&#34; /&gt;
+### QTL作图
+利用QTL IciMapping软件的ICIM模型进行遗传作图&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;path &amp;lt;- &amp;quot;C:/Users/wpf/Desktop/project/WinQTLMAP/ICIM/Rape/BIP/RapeRIL/Results/RapeRIL.ric&amp;quot;
+tmp &amp;lt;- fread(path) %&amp;gt;%
+  mutate(chrom = sapply(str_split(LeftMarker, &amp;quot;_&amp;quot;), `[`, 1)) %&amp;gt;%
+  select(TraitName, Chromosome, Position, LOD, chrom) %&amp;gt;%
+  group_by(TraitName) %&amp;gt;%
+  mutate(pos = row_number())
+
+axis &amp;lt;- tmp %&amp;gt;%
+  group_by(chrom) %&amp;gt;%
+  summarise(center = mean(pos))
+
+tmp %&amp;gt;%
+  ungroup() %&amp;gt;%
+  filter(str_starts(TraitName, &amp;quot;EaC&amp;quot;)) %&amp;gt;%
+  group_nest(TraitName) %&amp;gt;%
+  mutate(plot = map(data, ~ ggplot() +
+                      geom_line(data = .x,
+                                mapping = aes(x = pos, 
+                                              y = LOD, 
+                                              colour = as.factor(Chromosome))) +
+                      geom_hline(yintercept = 2.5,
+                                 color = &amp;quot;red&amp;quot;,
+                                 linetype = &amp;quot;dashed&amp;quot;,
+                                 alpha = 0.5) +
+                      scale_x_continuous(labels = axis$chrom, 
+                                         breaks = axis$center) +
+                      scale_color_manual(values = rep(c(&amp;quot;#4197d8&amp;quot;, &amp;quot;#f8c120&amp;quot;, &amp;quot;#413496&amp;quot;, &amp;quot;#495226&amp;quot;, &amp;quot;#d60b6f&amp;quot;, &amp;quot;#e66519&amp;quot;, &amp;quot;#d581b7&amp;quot;, &amp;quot;#83d3ad&amp;quot;, &amp;quot;#7c162c&amp;quot;, &amp;quot;#26755d&amp;quot;), 12)) +
+                      theme_prism() +
+                      theme(legend.position = &amp;quot;none&amp;quot;,
+                            axis.ticks = element_blank(),
+                            axis.text.x = element_text(angle = 45)) +
+                      xlab(NULL) +
+                      ylab(&amp;quot;LOD&amp;quot;))) %&amp;gt;%
+  walk2(.x = .$TraitName,
+        .y = .$plot,
+        .f = ~ print(.y))&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&#34;https://wangchangsheng.netlify.app/posts/2022-11-03-bip/index_files/figure-html/bip_qtl-1.png&#34; width=&#34;672&#34; /&gt;&lt;img src=&#34;https://wangchangsheng.netlify.app/posts/2022-11-03-bip/index_files/figure-html/bip_qtl-2.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+
+    </description>
+    </item>
+    
+    <item>
+    <title>高杂合率F1群体的遗传作图</title>
+    <link>https://wangchangsheng.netlify.app/posts/2022-11-03-f1/</link>
+    <pubDate>Thu, 03 Nov 2022 00:00:00 +0000</pubDate>
+    <author>wangchangsheng</author>
+    <guid>https://wangchangsheng.netlify.app/posts/2022-11-03-f1/</guid>
+    <description>
+        
+
+
+&lt;div id=&#34;前言&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;前言&lt;/h2&gt;
+&lt;p&gt;植物的分子遗传研究的重要优势在于遗传群体的易得性。通过设计杂交混合不同来源亲本的基因组，自交获得一系列基因型和表型存在分离的作图群体。但生产上不依赖种子繁殖的高等植物基因组上往往具有较高的杂合率，且具有强的自交不亲和性，如土豆和柑橘。一般利用两个高度杂合的双亲杂交，构建杂种一代群体，用于育种和遗传分析。&lt;/p&gt;
+&lt;p&gt;Lep-Map3是一款新颖免费的遗传作图软件，支持大量标记和个体的遗传图谱构建，尤其是低测序深度的全基因组测序数据。&lt;/p&gt;
+&lt;/div&gt;
+&lt;div id=&#34;数据准备&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;数据准备&lt;/h2&gt;
+&lt;div id=&#34;系谱&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;系谱&lt;/h3&gt;
+&lt;p&gt;系谱文件包含样本名及家系等相关信息，以tab为分隔符，示例如：&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr class=&#34;header&#34;&gt;
+&lt;th&gt;CHR&lt;/th&gt;
+&lt;th&gt;POS&lt;/th&gt;
+&lt;th&gt;F&lt;/th&gt;
+&lt;th&gt;F&lt;/th&gt;
+&lt;th&gt;F&lt;/th&gt;
+&lt;th&gt;F&lt;/th&gt;
+&lt;th&gt;F&lt;/th&gt;
+&lt;th&gt;F&lt;/th&gt;
+&lt;th&gt;F&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr class=&#34;odd&#34;&gt;
+&lt;td&gt;CHR&lt;/td&gt;
+&lt;td&gt;POS&lt;/td&gt;
+&lt;td&gt;SYH&lt;/td&gt;
+&lt;td&gt;ZNX&lt;/td&gt;
+&lt;td&gt;F1&lt;/td&gt;
+&lt;td&gt;F10&lt;/td&gt;
+&lt;td&gt;F101&lt;/td&gt;
+&lt;td&gt;F103&lt;/td&gt;
+&lt;td&gt;F104&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr class=&#34;even&#34;&gt;
+&lt;td&gt;CHR&lt;/td&gt;
+&lt;td&gt;POS&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;ZNX&lt;/td&gt;
+&lt;td&gt;ZNX&lt;/td&gt;
+&lt;td&gt;ZNX&lt;/td&gt;
+&lt;td&gt;ZNX&lt;/td&gt;
+&lt;td&gt;ZNX&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr class=&#34;odd&#34;&gt;
+&lt;td&gt;CHR&lt;/td&gt;
+&lt;td&gt;POS&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;SYH&lt;/td&gt;
+&lt;td&gt;SYH&lt;/td&gt;
+&lt;td&gt;SYH&lt;/td&gt;
+&lt;td&gt;SYH&lt;/td&gt;
+&lt;td&gt;SYH&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr class=&#34;even&#34;&gt;
+&lt;td&gt;CHR&lt;/td&gt;
+&lt;td&gt;POS&lt;/td&gt;
+&lt;td&gt;2&lt;/td&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr class=&#34;odd&#34;&gt;
+&lt;td&gt;CHR&lt;/td&gt;
+&lt;td&gt;POS&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;line1：家系名称，可多父母多家系&lt;/p&gt;
+&lt;p&gt;line2：样本名称&lt;/p&gt;
+&lt;p&gt;line3：父本名称，对应第二行第四列&lt;/p&gt;
+&lt;p&gt;line4：母本名称，对应第二行第三列&lt;/p&gt;
+&lt;p&gt;line5：性别，1为male，2为female，0为unknow&lt;/p&gt;
+&lt;p&gt;line6：表型，用不到，全为0&lt;/p&gt;
+&lt;/div&gt;
+&lt;div id=&#34;基因型&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;基因型&lt;/h3&gt;
+&lt;p&gt;VCF文件，必须包含likelihood信息，使用vcftools注意增加–recode-INFO-all参数。&lt;/p&gt;
+&lt;p&gt;从GATK的基因型文件，主要处理步骤为&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;提取SNP&lt;/li&gt;
+&lt;li&gt;GATK硬过滤&lt;/li&gt;
+&lt;li&gt;Founder多态性变异鉴定&lt;/li&gt;
+&lt;li&gt;offspring高质量变异鉴定&lt;/li&gt;
+&lt;li&gt;ParentCall2格式转换&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div id=&#34;gatk提取snp&#34; class=&#34;section level4&#34;&gt;
+&lt;h4&gt;GATK提取SNP&lt;/h4&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;singularity exec -e ~/Singularity_lib/gatk-4.2.2.0.sif gatk SelectVariants 
+-R ~/wpf/Datasets/Reference/Lychee/BWA/Lchinesis_genome.fa 
+-V ../07.VCF/raw/pop.vcf.gz 
+-O ../07.VCF/variant/pop.snp.vcf.gz 
+--select-type-to-include SNP&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;gatk硬过滤&#34; class=&#34;section level4&#34;&gt;
+&lt;h4&gt;GATK硬过滤&lt;/h4&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;singularity exec -e ~/Singularity_lib/gatk-4.2.2.0.sif gatk VariantFiltration 
+-R ~/wpf/Datasets/Reference/Lychee/BWA/Lchinesis_genome.fa 
+-V ../07.VCF/variant/pop.snp.vcf.gz 
+--filter-name &amp;quot;firstFilter&amp;quot; 
+--filter-expression &amp;quot;QD &amp;lt; 2.0 || MQ &amp;lt; 40.0 || FS &amp;gt; 60.0 || SOR &amp;gt; 3.0 
+|| MQRankSum &amp;lt; -12.5 || ReadPosRankSum &amp;lt; -8.0&amp;quot; 
+-O ../07.VCF/gatkvf/pop.snp.filt.vcf.gz&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;founder多态性变异鉴定&#34; class=&#34;section level4&#34;&gt;
+&lt;h4&gt;Founder多态性变异鉴定&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;初过滤标准为PASS，二等位，无缺失，测序深度为平均测序深度的一半至两倍&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;vcftools 
+--gzvcf pop.snp.filt.vcf.gz 
+--remove-filtered-all 
+--indv founder1 
+--indv founder2 
+--max-alleles 2 
+--min-alleles 2 
+--max-missing 1 
+--max-meanDP 60 
+--min-meanDP 15 
+--recode 
+--out founder&lt;/code&gt;&lt;/pre&gt;
+&lt;ul&gt;
+&lt;li&gt;多态性具有重组信息的标记筛选，即至少有一个亲本为杂合型&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;python&#34;&gt;&lt;code&gt;import re 
+vcf = open(&amp;#39;founder.recode.vcf&amp;#39;)
+output = open(&amp;#39;founder.filter.vcf&amp;#39;,&amp;#39;w&amp;#39;)
+for i in vcf:
+    try:
+        row = re.split(r&amp;#39;\t&amp;#39;,i)
+        p1 = re.split(r&amp;#39;\:&amp;#39;,row[9])[0]
+        p2 = re.split(r&amp;#39;\:&amp;#39;,row[10])[0]
+        if (p1 == &amp;#39;0/1&amp;#39; or p2 == &amp;#39;0/1&amp;#39;):
+            output.write(i)
+        else:
+            continue
+    except IndexError:
+        output.write(i)
+vcf.close()
+output.close()&lt;/code&gt;&lt;/pre&gt;
+&lt;ul&gt;
+&lt;li&gt;高质量位点筛选，SNPable筛选出无重复比对的位点&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;awk &amp;#39;{print$1&amp;quot;\t&amp;quot;$2}&amp;#39; founder.filter.vcf |grep -v &amp;quot;#&amp;quot; &amp;gt; founder.pos
+apply_mask_l mask_35_50.fa founder.pos &amp;gt; foundermask.pos &lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;offspring高质量变异鉴定&#34; class=&#34;section level4&#34;&gt;
+&lt;h4&gt;offspring高质量变异鉴定&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;初过滤标准为缺失率，maf和founder高质量位点&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;vcftools 
+--gzvcf pop.snp.filt.vcf.gz 
+--max-missing 0.8 
+--maf 0.05 
+--positions foundermask.pos 
+--recode-INFO-all 
+--recode 
+--out offspring_poly&lt;/code&gt;&lt;/pre&gt;
+&lt;ul&gt;
+&lt;li&gt;分割染色体&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;vcftools 
+--vcf offspring_poly.recode.vcf 
+--chr Chr1 
+--recode-INFO-all 
+--recode 
+--out Chr1&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;parentcall2格式转换&#34; class=&#34;section level4&#34;&gt;
+&lt;h4&gt;ParentCall2格式转换&lt;/h4&gt;
+&lt;p&gt;输入为十进制文件，&lt;strong&gt;压缩文件会导致读取出错&lt;/strong&gt;&lt;/p&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;java -cp ~/software/LepMAP3/bin/ ParentCall2 
+data=pedigree.txt 
+vcfFile=Chr1.recode.vcf 
+removeNonInformative=1 &amp;gt; Chr1.call&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;filtering2过滤偏分离标记&#34; class=&#34;section level4&#34;&gt;
+&lt;h4&gt;Filtering2过滤偏分离标记&lt;/h4&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;java -cp ~/software/LepMAP3/bin/ Filtering2
+data=Chr1.call
+removeNonInformative=1
+dataTolerance=0.001 &amp;gt; Chr1_chisq.call&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div id=&#34;无参标记的遗传图谱构建&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;无参标记的遗传图谱构建&lt;/h2&gt;
+&lt;p&gt;无参考基因组项目没接触过，或许GBS或RADseq可以产生这些标记。标记鉴定的基本思路应该是聚类测序read，组装或不组装生成参考序列（以每一种read为独立的参考序列）并鉴定标记，这些标记没有确切的坐标，通过后代的分离重组情况，重建遗传连锁图，确定标记间的相对位置。&lt;/p&gt;
+&lt;p&gt;基本流程为&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;SeparateChromosomes2标记分群&lt;/li&gt;
+&lt;li&gt;JoinSingles2All单独标记插补进连锁群&lt;/li&gt;
+&lt;li&gt;OrderMarkers2标记排序，计算遗传距离&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div id=&#34;分群&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;分群&lt;/h3&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;java -cp ~/software/LepMAP3/bin/ SeparateChromosomes2 
+data=Chr1_chisq.call 
+lodLimit=5 
+numThreads=8 
+distortionLod=1 &amp;gt; Chr1_chisq.map&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;插补&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;插补&lt;/h3&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;java -cp ~/software/LepMAP3/bin/ JoinSingles2All 
+map=Chr1_chisq.map 
+data=Chr1_chisq.call  
+distortionLod=1 
+numThreads=8 
+lodLimit=4 
+iterate=1 &amp;gt; Chr1_chisq_js_iterated.map&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;排序&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;排序&lt;/h3&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;java -cp ~/software/LepMAP3/bin/ OrderMarkers2 
+numThreads=20 
+map=Chr1_chisq_js_iterated.map 
+data=Chr1_chisq.call &amp;gt; Chr1_chisq.order&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;计算遗传距离&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;计算遗传距离&lt;/h3&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;java -cp ~/software/LepMAP3/bin/ OrderMarkers2 
+evaluateOrder=Chr1_chisq.order 
+data=Chr1_chisq.call 
+improveOrder=0 
+sexAveraged=1 &amp;gt; Chr1_chisq_sexAve.order
+
+java -cp ~/software/LepMAP3/bin/ OrderMarkers2 
+evaluateOrder=Chr1_chisq.order 
+data=Chr1_chisq.call 
+improveOrder=0 &amp;gt; Chr1_chisq_sex.order&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div id=&#34;有参标记的遗传图谱构建&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;有参标记的遗传图谱构建&lt;/h2&gt;
+&lt;p&gt;有参考基因组的标记无需分群排序，按照物理位置的顺序直接计算重组距离。&lt;/p&gt;
+&lt;p&gt;标记数量过多，以10kb为window构建遗传连锁图，主要流程为&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;构建10kb binning图谱&lt;/li&gt;
+&lt;li&gt;OrderMarkers2排序&lt;/li&gt;
+&lt;li&gt;提取window代表基因型&lt;/li&gt;
+&lt;li&gt;OrderMarkers2计算遗传距离&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div id=&#34;binning&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;binning&lt;/h3&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;awk &amp;#39;BEGIN{print &amp;quot;#binned markers&amp;quot;}(NR&amp;gt;7)
+{if (prevc != $1 || $2-prevp &amp;gt;= 10000) {++n;prevp=$2;prevc=$1}; print n}&amp;#39; 
+Chr1_chisq.call &amp;gt; Chr1_chisq.map&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;排序-1&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;排序&lt;/h3&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;java -cp ~/software/LepMAP3/bin/ OrderMarkers2 
+numThreads=20 
+map=Chr1_chisq.map 
+data=Chr1_chisq.call 
+recombination1=0 
+recombination2=0 
+outputPhasedData=4 &amp;gt; Chr1_chisq.order&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;提取标记&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;提取标记&lt;/h3&gt;
+&lt;p&gt;利用脚本order2data.awk提取binning标记&lt;/p&gt;
+&lt;pre class=&#34;awk&#34;&gt;&lt;code&gt;#script for marker binning...
+BEGIN{
+#ACxAG=AA,AC,AG,CG
+        map[&amp;quot;AA&amp;quot;] = &amp;quot;1 0 0 0 0 0 0&amp;quot;#00
+        map[&amp;quot;AC&amp;quot;] = &amp;quot;0 1 0 0 0 0 0&amp;quot;#01
+        map[&amp;quot;AG&amp;quot;] = &amp;quot;0 0 1 0 0 0 0&amp;quot;#10
+        map[&amp;quot;CG&amp;quot;] = &amp;quot;0 0 0 0 0 1 0&amp;quot;#11
+
+        if (chr == &amp;quot;&amp;quot;)
+                 chr = 1
+}
+/^[^#]/{
+        for (j = 7; j &amp;lt;= NF; ++j)
+                if ($j ~ /#$/) {
+                        $j = substr($j, 1, length($j) - 1)
+                        oldNF = j
+                        break
+                }
+        if (oldNF == NF)
+                next
+        if (prev == &amp;quot;&amp;quot; &amp;amp;&amp;amp; pedigree) {
+                s1 = &amp;quot;CHR\tPOS&amp;quot;
+                s2 = &amp;quot;CHR\tPOS&amp;quot;
+                s3 = &amp;quot;CHR\tPOS&amp;quot;
+                s4 = &amp;quot;CHR\tPOS&amp;quot;
+                s5 = &amp;quot;CHR\tPOS&amp;quot;
+                s6 = &amp;quot;CHR\tPOS&amp;quot;
+                f = 1
+                nt = 0
+                for (j = 7; j &amp;lt;= oldNF; j+=3) {
+                        n = length($j) / 2
+                        s1 = s1 &amp;quot;\tF&amp;quot; f &amp;quot;\tF&amp;quot; f
+                        s2 = s2 &amp;quot;\t&amp;quot; (nt + 1) &amp;quot;\t&amp;quot; (nt + 2)
+                        s3 = s3 &amp;quot;\t0\t0&amp;quot;
+                        s4 = s4 &amp;quot;\t0\t0&amp;quot;
+                        s5 = s5 &amp;quot;\t1\t2&amp;quot;
+                        s6 = s6 &amp;quot;\t0\t0&amp;quot;
+                        for (i = 1; i &amp;lt;= n; ++i) {
+                                s1 = s1 &amp;quot;\tF&amp;quot; f
+                                s2 = s2 &amp;quot;\t&amp;quot; (nt + i + 2)
+                                s3 = s3 &amp;quot;\t&amp;quot; (nt + 1)
+                                s4 = s4 &amp;quot;\t&amp;quot; (nt + 2)
+                                s5 = s5 &amp;quot;\t0&amp;quot;
+                                s6 = s6 &amp;quot;\t0&amp;quot;
+                        }
+                        nt += n + 2
+                        ++f
+                }
+                print s1 &amp;quot;\n&amp;quot; s2 &amp;quot;\n&amp;quot; s3 &amp;quot;\n&amp;quot; s4 &amp;quot;\n&amp;quot; s5 &amp;quot;\n&amp;quot; s6 
+        }
+
+        s = &amp;quot;&amp;quot;
+        nt = 0
+        for (j = 7; j &amp;lt;= oldNF; j+=3) {
+                s = s &amp;quot;\t&amp;quot; map[&amp;quot;AC&amp;quot;] &amp;quot;\t&amp;quot; map[&amp;quot;AG&amp;quot;]
+                n = length($j) / 2
+                for (i = oldNF + nt + 1; i &amp;lt;= oldNF + nt + 4 *n; i+=4)
+                        s = s &amp;quot;\t&amp;quot; $i &amp;quot; &amp;quot; $(i+1) &amp;quot; &amp;quot; $(i+2) &amp;quot; 0 0 &amp;quot; $(i+3) &amp;quot; 0&amp;quot;
+                nt += 4 * n
+        }
+        if (prev != s || FILENAME != prevFN)
+                print $1 &amp;quot;\t&amp;quot; chr s
+        prev = s
+        prevFN = FILENAME
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;awk -vfunnData=1 -f order2data.awk ../02.Orderraw/Chr1_chisq.order |
+awk &amp;#39;{print$1}&amp;#39; &amp;gt; Chr1_chisq.index
+
+awk &amp;#39;{print$1&amp;quot;\t&amp;quot;$2}&amp;#39; Chr1_chisq.call |grep Chr1 &amp;gt; Chr1_chisq.pos&lt;/code&gt;&lt;/pre&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;library(tidyverse)
+
+pos &amp;lt;- read_tsv(&amp;quot;Chr1_chisq.pos&amp;quot;, col_names = FALSE) %&amp;gt;%
+  mutate(id = row_number()) 
+
+index &amp;lt;- read_tsv(&amp;quot;Chr1_chisq.index&amp;quot;, col_names = FALSE) %&amp;gt;%
+  rename(id = X1) 
+
+tmp &amp;lt;- index %&amp;gt;%
+  left_join(pos, by = &amp;quot;id&amp;quot;) %&amp;gt;%
+  select(-id)
+
+write_tsv(tmp, file = &amp;quot;Chr1_chisq_bin.pos&amp;quot;, col_names = FALSE)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;vcftools 
+--vcf Chr1_chisq.recode.vcf 
+--positions Chr1_chisq_bin.pos 
+--recode 
+--recode-INFO-all 
+--out Chr1_chisq_bin
+
+java -cp ~/software/LepMAP3/bin/ ParentCall2 
+data=pedigree.txt 
+vcfFile=Chr1_chisq_bin.recode.vcf &amp;gt; Chr1_chisq_bin.call&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;计算遗传距离-1&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;计算遗传距离&lt;/h3&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;awk &amp;#39;{print NR}&amp;#39; Chr1_chisq_bin.pos &amp;gt; Chr1_chisq_bin.order
+
+java -cp ~/software/LepMAP3/bin/ OrderMarkers2 
+evaluateOrder=Chr1_chisq.order 
+data=Chr1_chisq.call 
+improveOrder=0 
+sexAveraged=1 &amp;gt; Chr1_chisq_sexAve.order
+
+java -cp ~/software/LepMAP3/bin/ OrderMarkers2 
+evaluateOrder=Chr1_chisq.order 
+data=Chr1_chisq.call 
+improveOrder=0 &amp;gt; Chr1_chisq_sex.order&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div id=&#34;转换基因型&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;转换基因型&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;利用脚本map2genotypes.awk转换基因型。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;awk&#34;&gt;&lt;code&gt;#converts phased data to &amp;quot;genotypes&amp;quot;
+#usage: 
+#java ... OrderMarkers2 ... outputPhasedData=1 &amp;gt; order_with_phase_LM3.txt
+#awk [-vchr=X] [-vfullData=1] -f map2genotypes.awk order_with_phase_LM3.txt
+#output columns marker name, chr, male postion, female postion, genotypes coded as &amp;quot;1 1&amp;quot;, &amp;quot;1 2&amp;quot;, &amp;quot;2 2&amp;quot; and 0 as missing
+#providing fullData ouputs parents and pedigree...
+BEGIN{
+        map[&amp;quot;00&amp;quot;]=&amp;quot;1 1&amp;quot;
+        map[&amp;quot;01&amp;quot;]=&amp;quot;1 2&amp;quot;
+        map[&amp;quot;10&amp;quot;]=&amp;quot;2 1&amp;quot;
+        map[&amp;quot;11&amp;quot;]=&amp;quot;2 2&amp;quot;
+        map[&amp;quot;0-&amp;quot;]=&amp;quot;1 0&amp;quot;
+        map[&amp;quot;-0&amp;quot;]=&amp;quot;0 1&amp;quot;
+        map[&amp;quot;-1&amp;quot;]=&amp;quot;0 2&amp;quot;
+        map[&amp;quot;1-&amp;quot;]=&amp;quot;2 0&amp;quot;
+        map[&amp;quot;--&amp;quot;]=&amp;quot;0 0&amp;quot;
+        if (chr == &amp;quot;&amp;quot;)
+                chr = 0
+}
+(/^[^#]/){
+        if (!notFirst &amp;amp;&amp;amp; fullData){
+                notFirst = 1
+                s1 =  &amp;quot;MARKER\tCHR\tMALE_POS\tFEMALE_POS&amp;quot;
+                s2 =  &amp;quot;MARKER\tCHR\tMALE_POS\tFEMALE_POS&amp;quot;
+                s3 =  &amp;quot;MARKER\tCHR\tMALE_POS\tFEMALE_POS&amp;quot;
+                s4 =  &amp;quot;MARKER\tCHR\tMALE_POS\tFEMALE_POS&amp;quot;
+                s5 =  &amp;quot;MARKER\tCHR\tMALE_POS\tFEMALE_POS&amp;quot;
+                s6 =  &amp;quot;MARKER\tCHR\tMALE_POS\tFEMALE_POS&amp;quot;
+                for (i = 7; i&amp;lt;=NF; i+=3) {
+                        n = length($i) / 2
+                        p1 = &amp;quot;P&amp;quot; (++numParents)
+                        p2 = &amp;quot;P&amp;quot; (++numParents)
+                        s1 = s1 &amp;quot;\t&amp;quot; p1 &amp;quot;x&amp;quot; p2 &amp;quot;\t&amp;quot; p1 &amp;quot;x&amp;quot; p2
+                        s2 = s2 &amp;quot;\t&amp;quot; p1 &amp;quot;\t&amp;quot; p2
+                        s3 = s3 &amp;quot;\t&amp;quot; 0 &amp;quot;\t&amp;quot; 0
+                        s4 = s4 &amp;quot;\t&amp;quot; 0 &amp;quot;\t&amp;quot; 0
+                        s5 = s5 &amp;quot;\t&amp;quot; 1 &amp;quot;\t&amp;quot; 2
+                        s6 = s6 &amp;quot;\t&amp;quot; 0 &amp;quot;\t&amp;quot; 0
+                        for (j = 1; j &amp;lt;= n; ++j) {
+                                s1 = s1 &amp;quot;\t&amp;quot; p1 &amp;quot;x&amp;quot; p2
+                                s2 = s2 &amp;quot;\tC&amp;quot; (++numOffspring)
+                                s3 = s3 &amp;quot;\t&amp;quot; p1
+                                s4 = s4 &amp;quot;\t&amp;quot; p2
+                                s5 = s5 &amp;quot;\t0&amp;quot; 
+                                s6 = s6 &amp;quot;\t0&amp;quot; 
+                        }
+                }
+                print s1
+                print s2
+                print s3
+                print s4
+                print s5
+                print s6
+        }
+        s = $1 &amp;quot;\t&amp;quot; chr &amp;quot;\t&amp;quot; $2 &amp;quot;\t&amp;quot; $3
+        for (i = 7; i&amp;lt;=NF; i+=3) {
+                if (fullData) #parental data
+                        s = s &amp;quot;\t1 2\t1 2&amp;quot;
+                n = length($i) / 2
+                p1 = substr($i,1,n)
+                p2 = substr($i,n+1)
+                for (j = 1; j &amp;lt;= n; ++j)
+                        s = s &amp;quot;\t&amp;quot; map[substr(p1, j, 1) substr(p2, j, 1)]
+        }
+        print s
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;pre class=&#34;shell&#34;&gt;&lt;code&gt;awk -vfullData=1 -f map2genotypes.awk Chr1_chisq_sex.order &amp;gt; 
+Chr1_chisq_sex.geno
+
+awk -vfullData=1 -f map2genotypes.awk Chr1_chisq_Avesex.order &amp;gt; 
+Chr1_chisq_sexAve.geno&lt;/code&gt;&lt;/pre&gt;
+&lt;ul&gt;
+&lt;li&gt;去除重负和偏分离位点，符合GACD输入标准&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;geno &amp;lt;- fread(&amp;quot;Lychee/Output/geno.tsv&amp;quot;) %&amp;gt;%
+  as_tibble() %&amp;gt;%
+  mutate(chrom = sapply(str_split(marker, &amp;quot;_&amp;quot;), `[`, 1))
+
+# 去除重复
+tmp &amp;lt;- geno %&amp;gt;%
+  unite(col = &amp;quot;sig&amp;quot;, names(select(., starts_with(&amp;quot;F&amp;quot;))), sep = &amp;quot;-&amp;quot;, remove = FALSE) %&amp;gt;%
+  mutate(leadsig = lead(sig, default = &amp;quot;0&amp;quot;))  %&amp;gt;%
+  group_by(chrom) %&amp;gt;%
+  filter(sig != leadsig) %&amp;gt;%
+  select(marker, chrom, pos, starts_with(&amp;quot;F&amp;quot;))
+
+# 去除极端偏分离位点
+tmp2 &amp;lt;- tmp %&amp;gt;%
+  rowwise() %&amp;gt;%
+  mutate(t = length(unique(c_across(cols = starts_with(&amp;quot;F&amp;quot;))))) %&amp;gt;%
+  filter(t &amp;gt; 1) %&amp;gt;%
+  select(-t)&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;作图&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;作图&lt;/h2&gt;
+&lt;div id=&#34;遗传连锁图&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;遗传连锁图&lt;/h3&gt;
+&lt;p&gt;利用R/qtl包来绘制中性遗传连锁图谱&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;suppressWarnings(suppressMessages(library(tidyverse)))
+suppressWarnings(suppressMessages(library(qtl)))
+suppressWarnings(suppressMessages(library(data.table)))
+suppressWarnings(suppressMessages(library(ggprism)))
+
+path &amp;lt;- &amp;quot;C:/Users/wpf/Desktop/project/Bipgenetic/&amp;quot;
+
+file &amp;lt;- fs::dir_ls(path = str_c(path, &amp;quot;Lychee/Data/geno/&amp;quot;), glob = &amp;quot;*Ave*&amp;quot;)
+
+tmp &amp;lt;- map_dfr(.x = file,
+               .f = ~ read_tsv(., 
+                               skip = 1, 
+                               col_select = c(1:4),
+                               show_col_types = FALSE),
+               .id = &amp;quot;Chrtmp&amp;quot;)
+
+tmp2 &amp;lt;- tmp %&amp;gt;%
+  filter(MARKER != &amp;quot;MARKER&amp;quot;) %&amp;gt;%
+  mutate(chrom = sapply(str_split(str_replace(Chrtmp, path, &amp;quot;&amp;quot;), &amp;quot;/|_&amp;quot;), `[`, 4),
+         markername = str_c(chrom, &amp;quot;-&amp;quot;, MARKER),
+         chr = str_sub(chrom, 4) %&amp;gt;% as.numeric(),
+         pos = as.numeric(MALE_POS)) %&amp;gt;%
+  select(markername, chr, pos) %&amp;gt;%
+  arrange(chr) %&amp;gt;%
+  column_to_rownames(var = &amp;quot;markername&amp;quot;)
+
+map &amp;lt;- table2map(tmp2)
+plot.map(map)&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&#34;https://wangchangsheng.netlify.app/posts/2022-11-03-f1/index_files/figure-html/unnamed-chunk-1-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div id=&#34;单家系全基因组基因型图&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;单家系全基因组基因型图&lt;/h3&gt;
+&lt;p&gt;LepMap3输出默认的坐标和家系名称，根据实际坐标和名称对原始输出进行预处理&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;pos &amp;lt;- fs::dir_ls(path = str_c(path, &amp;quot;Lychee/Data/POS/&amp;quot;))
+
+tmppos &amp;lt;- map_dfr(.x = pos,
+                  .f = ~ read_tsv(., col_names = FALSE, show_col_types = FALSE),
+                  .id = NULL) %&amp;gt;%
+  `colnames&amp;lt;-`(c(&amp;quot;chrom&amp;quot;, &amp;quot;pos&amp;quot;)) %&amp;gt;%
+  group_by(chrom) %&amp;gt;%
+  mutate(id = row_number(),
+         markername = str_c(chrom, &amp;quot;-&amp;quot;, id),
+         marker = str_c(chrom, &amp;quot;_&amp;quot;, pos)) %&amp;gt;%
+  ungroup() %&amp;gt;%
+  select(markername, marker)
+
+file &amp;lt;- fs::dir_ls(path = str_c(path, &amp;quot;Lychee/Data/geno/&amp;quot;), glob = &amp;quot;*Ave*&amp;quot;)
+
+taxa &amp;lt;- read_tsv(file = str_c(path, &amp;quot;Lychee/extraMaterials/renametaxa.txt&amp;quot;),
+                 show_col_types = FALSE,
+                 col_names = FALSE)
+tmp &amp;lt;- map_dfr(.x = file,
+               .f = ~ read_tsv(., skip = 1, show_col_types = FALSE),
+               .id = &amp;quot;Chrtmp&amp;quot;) %&amp;gt;%
+  rename_with(.cols = taxa$X2, ~ taxa$X1) %&amp;gt;%
+  filter(MARKER != &amp;quot;MARKER&amp;quot;) %&amp;gt;%
+  mutate(chrom = sapply(str_split(str_replace(Chrtmp, path, &amp;quot;&amp;quot;), &amp;quot;/|_&amp;quot;), `[`, 4),
+         markername = str_c(chrom, &amp;quot;-&amp;quot;, MARKER),
+         chr = str_sub(chrom, start = 4) %&amp;gt;% as.numeric(),
+         pos = as.numeric(MALE_POS)) %&amp;gt;%
+  select(markername, chr, pos, starts_with(&amp;quot;F&amp;quot;), -FEMALE_POS) %&amp;gt;%
+  mutate(across(.cols = starts_with(&amp;quot;F&amp;quot;),
+                ~ case_when(
+                  . == &amp;quot;1 2&amp;quot; ~ &amp;quot;AD&amp;quot;,
+                  . == &amp;quot;1 1&amp;quot; ~ &amp;quot;AC&amp;quot;,
+                  . == &amp;quot;2 1&amp;quot; ~ &amp;quot;BC&amp;quot;,
+                  . == &amp;quot;2 2&amp;quot; ~ &amp;quot;BD&amp;quot;
+                ))) %&amp;gt;%
+  left_join(tmppos, by = &amp;quot;markername&amp;quot;) %&amp;gt;%
+  group_by(chr) %&amp;gt;%
+  mutate(end = sapply(str_split(marker, &amp;quot;_&amp;quot;), `[`, 2) %&amp;gt;% as.numeric(),
+         start = lag(end, default = 0)) %&amp;gt;%
+  ungroup() %&amp;gt;%
+  select(marker, chr, start, end, starts_with(&amp;quot;F&amp;quot;))
+
+head(tmp)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;## # A tibble: 6 × 268
+##   marker   chr start   end F101  F10   F103  F104  F105  F107  F108  F109  F110 
+##   &amp;lt;chr&amp;gt;  &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;chr&amp;gt; &amp;lt;chr&amp;gt; &amp;lt;chr&amp;gt; &amp;lt;chr&amp;gt; &amp;lt;chr&amp;gt; &amp;lt;chr&amp;gt; &amp;lt;chr&amp;gt; &amp;lt;chr&amp;gt; &amp;lt;chr&amp;gt;
+## 1 Chr10…    10     0  2074 AD    AD    AD    BD    AD    BD    BD    BD    AC   
+## 2 Chr10…    10  2074 13977 AD    AD    AD    BD    AD    BD    BD    BD    AC   
+## 3 Chr10…    10 13977 32248 AD    AD    AD    BD    AD    BD    BD    BD    AC   
+## 4 Chr10…    10 32248 35953 AD    AD    AD    BD    AD    BD    BD    BD    AC   
+## 5 Chr10…    10 35953 53527 AD    AD    AD    BD    AD    BD    BD    BD    AC   
+## 6 Chr10…    10 53527 79901 AD    AD    AD    BD    AD    BD    BD    BD    AC   
+## # … with 255 more variables: F111 &amp;lt;chr&amp;gt;, F112 &amp;lt;chr&amp;gt;, F113 &amp;lt;chr&amp;gt;, F114 &amp;lt;chr&amp;gt;,
+## #   F115 &amp;lt;chr&amp;gt;, F116 &amp;lt;chr&amp;gt;, F118 &amp;lt;chr&amp;gt;, F119 &amp;lt;chr&amp;gt;, F1 &amp;lt;chr&amp;gt;, F120 &amp;lt;chr&amp;gt;,
+## #   F121 &amp;lt;chr&amp;gt;, F12 &amp;lt;chr&amp;gt;, F122 &amp;lt;chr&amp;gt;, F123 &amp;lt;chr&amp;gt;, F124 &amp;lt;chr&amp;gt;, F125 &amp;lt;chr&amp;gt;,
+## #   F126 &amp;lt;chr&amp;gt;, F127 &amp;lt;chr&amp;gt;, F128 &amp;lt;chr&amp;gt;, F129 &amp;lt;chr&amp;gt;, F131 &amp;lt;chr&amp;gt;, F13 &amp;lt;chr&amp;gt;,
+## #   F134 &amp;lt;chr&amp;gt;, F135 &amp;lt;chr&amp;gt;, F136 &amp;lt;chr&amp;gt;, F140 &amp;lt;chr&amp;gt;, F141 &amp;lt;chr&amp;gt;, F142 &amp;lt;chr&amp;gt;,
+## #   F143 &amp;lt;chr&amp;gt;, F144 &amp;lt;chr&amp;gt;, F145 &amp;lt;chr&amp;gt;, F146 &amp;lt;chr&amp;gt;, F147 &amp;lt;chr&amp;gt;, F148 &amp;lt;chr&amp;gt;,
+## #   F149 &amp;lt;chr&amp;gt;, F151 &amp;lt;chr&amp;gt;, F15 &amp;lt;chr&amp;gt;, F152 &amp;lt;chr&amp;gt;, F153 &amp;lt;chr&amp;gt;, F154 &amp;lt;chr&amp;gt;, …&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;预处理文件第一列为标记，第二列染色体，第三四列为BIN的起始结束坐标，第五行后是家系基因型。&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;genome &amp;lt;- tmp %&amp;gt;%
+  group_by(chr) %&amp;gt;%
+  summarise(hapA = max(end),
+            hapB = max(end)) %&amp;gt;%
+  pivot_longer(cols = -chr,
+               names_to = &amp;quot;Hap&amp;quot;,
+               values_to = &amp;quot;len&amp;quot;)  #基础骨架
+prefix &amp;lt;- tmp %&amp;gt;%
+  select(-starts_with(&amp;quot;F&amp;quot;))
+
+names(tmp)[-c(1:3)] %&amp;gt;%
+  map_dfc(~ tmp %&amp;gt;%
+            select(all_of(.x)) %&amp;gt;%
+            separate(col = .x,
+                     into = str_c(.x, c(&amp;quot;_hapA&amp;quot;, &amp;quot;_hapB&amp;quot;)),
+                     sep = 1)) %&amp;gt;% #phasing haplotype
+  bind_cols(prefix) %&amp;gt;%
+  pivot_longer(cols = starts_with(&amp;quot;F&amp;quot;),
+               names_to = c(&amp;quot;taxa&amp;quot;, &amp;quot;Hap&amp;quot;),
+               names_sep = &amp;quot;_&amp;quot;,
+               values_to = &amp;quot;geno&amp;quot;) %&amp;gt;%
+  filter(taxa %in% c(&amp;quot;F1&amp;quot;, &amp;quot;F2&amp;quot;)) %&amp;gt;% #以F1和F2作为图示案例
+  group_nest(taxa) %&amp;gt;%
+  mutate(plot = map(data, ~ ggplot() + 
+                      geom_bar(data = genome,
+                               mapping = aes(x = chr, y = len/1e6, group = Hap),
+                               colour = &amp;quot;white&amp;quot;,
+                               stat = &amp;quot;identity&amp;quot;,
+                               fill = &amp;quot;white&amp;quot;,
+                               width = 0.4,
+                               position = position_dodge2(width = 0.5)) +
+                      scale_x_discrete(limits = str_c(&amp;quot;Chr&amp;quot;, seq(1, 15)),
+                                       position = &amp;quot;top&amp;quot;) + 
+                      scale_y_continuous(breaks = seq(0, 50, 5), # 酌情调整染色体数目和长度
+                                         trans = &amp;quot;reverse&amp;quot;,
+                                         expand = expansion(mult = c(0.05, 0))) + 
+                      theme_bw() +
+                      theme(legend.position = c(0.8, 0.2),
+                            plot.background = element_blank() ,
+                            panel.grid.major = element_blank(),
+                            panel.grid.minor = element_blank() ,
+                            panel.border = element_blank(), 
+                            axis.ticks.x = element_blank(),
+                            axis.line.y = element_line()) +
+                      xlab(NULL) + ylab(&amp;quot;Loction (Mb)&amp;quot;) +
+                      geom_rect(data = .x,
+                                mapping = aes(xmin = chr - 0.23,
+                                              xmax = chr + 0.23,
+                                              ymin = start/1e6,
+                                              ymax = end/1e6,
+                                              fill = geno,
+                                              group = Hap),
+                                position = position_dodge(width = 0.6)) +
+                      scale_fill_manual(values = c( &amp;quot;#4197d8&amp;quot;, &amp;quot;#f8c120&amp;quot;, &amp;quot;#413496&amp;quot;, &amp;quot;#d60b6f&amp;quot;),
+                                        name = &amp;quot;Genotype&amp;quot;))) %&amp;gt;%
+  walk2(.x = .$taxa,
+        .y = .$plot,
+        .f = ~ print(.y))&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&#34;https://wangchangsheng.netlify.app/posts/2022-11-03-f1/index_files/figure-html/unnamed-chunk-3-1.png&#34; width=&#34;672&#34; /&gt;&lt;img src=&#34;https://wangchangsheng.netlify.app/posts/2022-11-03-f1/index_files/figure-html/unnamed-chunk-3-2.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div id=&#34;qtl作图&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;QTL作图&lt;/h3&gt;
+&lt;p&gt;利用GACD软件进行连锁分析&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;path2 &amp;lt;- &amp;quot;C:/Users/wpf/Desktop/project/WinQTLMAP/GACD/Lychee/CDQ/LycheeGACD/Results/LycheeGACD.ric&amp;quot;
+
+tmp &amp;lt;- fread(path2) %&amp;gt;%
+  select(TraitName, Chromosome, Position, LOD) %&amp;gt;%
+  group_by(TraitName) %&amp;gt;%
+  mutate(pos = row_number()) %&amp;gt;%
+  ungroup()
+
+axis &amp;lt;- tmp %&amp;gt;%
+  group_by(Chromosome) %&amp;gt;%
+  summarise(center = mean(pos))
+
+tmp %&amp;gt;%
+  filter(str_starts(TraitName, pattern = &amp;quot;biyezhong&amp;quot;)) %&amp;gt;%
+  group_nest(TraitName) %&amp;gt;%
+  mutate(plot = map(data, ~ ggplot() +
+                      geom_line(data = .x,
+                                mapping = aes(x = pos, y = LOD, colour = as.factor(Chromosome))) +
+                      geom_hline(yintercept = 2.5,
+                                 color = &amp;quot;red&amp;quot;,
+                                 linetype = &amp;quot;dashed&amp;quot;,
+                                 alpha = 0.5) +
+                      scale_x_continuous(labels = axis$Chromosome, 
+                                         breaks = axis$center) +
+                      scale_color_manual(values = rep(c(&amp;quot;#4197d8&amp;quot;, &amp;quot;#f8c120&amp;quot;, &amp;quot;#413496&amp;quot;, &amp;quot;#495226&amp;quot;, &amp;quot;#d60b6f&amp;quot;, &amp;quot;#e66519&amp;quot;, &amp;quot;#d581b7&amp;quot;, &amp;quot;#83d3ad&amp;quot;, &amp;quot;#7c162c&amp;quot;, &amp;quot;#26755d&amp;quot;), 12)) +
+                      theme_prism() +
+                      theme(legend.position = &amp;quot;none&amp;quot;,
+                            axis.ticks = element_blank()) +
+                      xlab(NULL) +
+                      ylab(&amp;quot;LOD&amp;quot;))) %&amp;gt;%
+  walk2(.x = .$TraitName,
+        .y = .$plot,
+        .f = ~ print(.y))&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&#34;https://wangchangsheng.netlify.app/posts/2022-11-03-f1/index_files/figure-html/unnamed-chunk-4-1.png&#34; width=&#34;672&#34; /&gt;&lt;img src=&#34;https://wangchangsheng.netlify.app/posts/2022-11-03-f1/index_files/figure-html/unnamed-chunk-4-2.png&#34; width=&#34;672&#34; /&gt;&lt;img src=&#34;https://wangchangsheng.netlify.app/posts/2022-11-03-f1/index_files/figure-html/unnamed-chunk-4-3.png&#34; width=&#34;672&#34; /&gt;&lt;img src=&#34;https://wangchangsheng.netlify.app/posts/2022-11-03-f1/index_files/figure-html/unnamed-chunk-4-4.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+
+    </description>
+    </item>
+    
     <item>
     <title>SNPable的使用</title>
     <link>https://wangchangsheng.netlify.app/posts/2022-09-11-2/</link>

@@ -1,13 +1,12 @@
 ---
-title: 高杂合率F1群体的遗传作图
-author: wangchangsheng
-date: '2022-11-03'
+title: "高杂合率F1群体的遗传作图"
+author: "wangchangsheng"
+date: "2022-11-03"
 slug: []
-categories:
-  - Genetics
+categories: Genetics
 tags:
-  - genetic map
-  - Lep-Map3
+- genetic map
+- "Lep-Map3"
 ---
 
 ## 前言
@@ -489,7 +488,7 @@ tmp2 <- tmp %>%
 
 利用R/qtl包来绘制中性遗传连锁图谱
 
-```{r}
+```{r f1_genetic_map}
 suppressWarnings(suppressMessages(library(tidyverse)))
 suppressWarnings(suppressMessages(library(qtl)))
 suppressWarnings(suppressMessages(library(data.table)))
@@ -524,7 +523,7 @@ plot.map(map)
 
 LepMap3输出默认的坐标和家系名称，根据实际坐标和名称对原始输出进行预处理
 
-```{r}
+```{r f1_indv_bin1}
 pos <- fs::dir_ls(path = str_c(path, "Lychee/Data/POS/"))
 
 tmppos <- map_dfr(.x = pos,
@@ -571,7 +570,7 @@ head(tmp)
 ```
 预处理文件第一列为标记，第二列染色体，第三四列为BIN的起始结束坐标，第五行后是家系基因型。
 
-```{r}
+```{r f1_indv_bin2}
 genome <- tmp %>%
   group_by(chr) %>%
   summarise(hapA = max(end),
@@ -636,7 +635,7 @@ names(tmp)[-c(1:3)] %>%
 
 利用GACD软件进行连锁分析
 
-```{r}
+```{r f1_qtl}
 path2 <- "C:/Users/wpf/Desktop/project/WinQTLMAP/GACD/Lychee/CDQ/LycheeGACD/Results/LycheeGACD.ric"
 
 tmp <- fread(path2) %>%

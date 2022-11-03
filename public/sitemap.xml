@@ -3,24 +3,39 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://wangchangsheng.netlify.app/</loc>
-    <lastmod>2022-09-11T00:00:00+00:00</lastmod>
+    <lastmod>2022-11-03T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://wangchangsheng.netlify.app/categories/</loc>
-    <lastmod>2022-09-11T00:00:00+00:00</lastmod>
+    <lastmod>2022-11-03T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://wangchangsheng.netlify.app/categories/genomics/</loc>
-    <lastmod>2022-09-11T00:00:00+00:00</lastmod>
+    <loc>https://wangchangsheng.netlify.app/tags/genetic-map/</loc>
+    <lastmod>2022-11-03T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://wangchangsheng.netlify.app/categories/genetics/</loc>
+    <lastmod>2022-11-03T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://wangchangsheng.netlify.app/tags/lep-map3/</loc>
+    <lastmod>2022-11-03T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://wangchangsheng.netlify.app/posts/</loc>
+    <lastmod>2022-11-03T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://wangchangsheng.netlify.app/tags/</loc>
+    <lastmod>2022-11-03T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://wangchangsheng.netlify.app/posts/2022-11-03-bip/</loc>
+    <lastmod>2022-11-03T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://wangchangsheng.netlify.app/posts/2022-11-03-f1/</loc>
+    <lastmod>2022-11-03T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://wangchangsheng.netlify.app/categories/genomics/</loc>
     <lastmod>2022-09-11T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://wangchangsheng.netlify.app/tags/snpable/</loc>
     <lastmod>2022-09-11T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://wangchangsheng.netlify.app/posts/2022-09-11-2/</loc>
-    <lastmod>2022-09-11T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://wangchangsheng.netlify.app/tags/</loc>
     <lastmod>2022-09-11T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://wangchangsheng.netlify.app/categories/bioinfor/</loc>
