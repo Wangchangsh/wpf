@@ -1,4 +1,5 @@
 baseurl: "https://wangchangsheng.netlify.app/"
+#baseurl: "/"
 languageCode: "en-us"
 title: "Additive and Dominance"
 theme: "hugo-tania"
