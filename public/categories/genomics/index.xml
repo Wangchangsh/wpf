@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Genomics on Additive and Dominance</title>
+    <link>https://wangchangsheng.netlify.app/categories/genomics/</link>
+    <description>Recent content in Genomics on Additive and Dominance</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sun, 11 Sep 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://wangchangsheng.netlify.app/categories/genomics/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>SNPable的使用</title>
+      <link>https://wangchangsheng.netlify.app/posts/2022-09-11-2/</link>
+      <pubDate>Sun, 11 Sep 2022 00:00:00 +0000</pubDate>
+      
+      <guid>https://wangchangsheng.netlify.app/posts/2022-09-11-2/</guid>
+      <description>前言  植物基因组普遍存在全基因组加倍融合的现象。在高通量测序read回帖时，常出现多重比对的现象，最终会导致不准确的变异鉴定。SNPable可以鉴定出基因组上多重比对的变异位点。
+   SNPable使用     参考基因组的准备   BWA索引参考基因组 模拟35bp的单端测序文件 回帖 生成mask参考基因组     BWA索引参考基因组  1 2  bwa index ref.fa samtools faidx ref.fa      模拟35bp的单端测序文件  1  splitfa ref.fa 35|split -l 20000000      回帖  1 2  bwa aln -R 1000000 -O 3 -E 3 ref.fa xaa &amp;gt; xaa.</description>
+    </item>
+    
+  </channel>
+</rss>

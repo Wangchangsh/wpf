@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Bioinfor on Additive and Dominance</title>
+    <link>https://wangchangsheng.netlify.app/categories/bioinfor/</link>
+    <description>Recent content in Bioinfor on Additive and Dominance</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Wed, 16 Mar 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://wangchangsheng.netlify.app/categories/bioinfor/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>下载测序数据</title>
+      <link>https://wangchangsheng.netlify.app/posts/2022-03-16-/</link>
+      <pubDate>Wed, 16 Mar 2022 00:00:00 +0000</pubDate>
+      
+      <guid>https://wangchangsheng.netlify.app/posts/2022-03-16-/</guid>
+      <description>在新课题和新项目开展时，需要重复他人的实验以确定可靠的流程。一般在文献最后都会附上项目编号PRJNA。SRA数据库的层次结构是SRP(项目)-SRS(样本)-SRX(数据产生)-SRR(数据本身)。数据库的层级是PRJNA-SAMN。
+以高粱比较基因组数据集PRJNA513297为例。
+   NCBI SRA  目前NCBI正在将数据传输至亚马逊云AWS和谷歌云GS，美国境内服务器免费，其他的服务器收费，用户自己掏钱，由于正在迁移，NCBI也不保证数据的完整性。虽然也提供了亚马逊云的免费链接，但是国内实测速度奇慢无比。使用Aspera找不到SRA的下载链接，一般使用NCBI的工具prefetch或fastq-dump。
+先搜索项目号，获取项目详细信息。
+1 2 3 4 5 6  module load Singularity/3.1.1 # 下载数据,若数据量大于20G需加-X参数 awk -F &amp;#39;,&amp;#39; &amp;#39;{print $1}&amp;#39; sample.list|grep SRR|xargs -n 1 singularity exec -e ~/Singularity_lib/download.sif prefetch ## fastq-dump singularity exec -e ~/Singularity_lib/download.sif fastq-dump -A SRRXXX singularity exec -e ~/Singularity_lib/download.sif fastqer-dump -e threads SRRXXX      EMBL ENA  美国的NCBI的SRA与欧洲的EBI-EMBL以及日本的DDBJ数据库共享数据，我们可以使用Aspera在EBA数据中直接下载fastq文件。
+先搜索项目号，点击PRJNA数据集，下载TSV的Download report(无法复制链接在linux下载)。
+1 2  # 下载数据集，此处sample.list为ENA的TSV的Download report grep -v study_accession sample.</description>
+    </item>
+    
+  </channel>
+</rss>

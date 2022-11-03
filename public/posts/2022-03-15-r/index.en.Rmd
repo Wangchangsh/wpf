@@ -1,0 +1,54 @@
+---
+title: R语言批量操作
+author: wangchangsheng
+date: '2022-03-15'
+slug: []
+categories:
+  - R program
+tags: 
+  - R
+  - Tidyverse
+description: ~
+featured_image: ~
+---
+
+# 前言
+
+在数据分析过程中，总是需要批量操作，如批量保存文件或批量作图。baseR的解法十分简单，for或while循环即可，但不够优雅。下面以tidyverse自带数据diamonds为例，以优雅的tidyverse流代码实现批量操作。
+
+## 加载包和数据
+
+```{r library, echo = TRUE, message = FALSE, warning = FALSE, collapse = TRUE}
+library(tidyverse)
+library(ggprism)
+data("diamonds")
+```
+
+## 批量保存
+
+```{r multiple write, echo = TRUE, eval = FALSE}
+diamonds %>%
+  group_nest(cut) %>%
+  pwalk(.l = list(.$cut, .$data),
+        .f = ~ write.table(x = .y,
+                           file = str_c(path, .x, ".txt"),
+                           col.names = FALSE,
+                           row.names = FALSE,
+                           quote = FALSE))
+```
+
+## 批量作图
+
+```{r multiple plot, echo = TRUE}
+diamonds %>%
+  group_nest(cut) %>%
+  mutate(plot = map(data, ~ ggplot(data = .x) + 
+                      geom_boxplot(aes(x = clarity, y = price, fill = clarity)) +
+                      theme_prism() +
+                      scale_fill_prism(palette = "winter_bright"))) %>%
+  walk2(.x = .$cut,
+        .y = .$plot,
+        .f = ~ print(.y))
+```
+
+若想保存图片，将print替代为ggsave(filename = str_c(path, .x, ".pdf"), plot = .y)。

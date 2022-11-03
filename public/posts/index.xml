@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on Additive and Dominance</title>
+    <link>https://wangchangsheng.netlify.app/posts/</link>
+    <description>Recent content in Posts on Additive and Dominance</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sun, 11 Sep 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://wangchangsheng.netlify.app/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>SNPable的使用</title>
+      <link>https://wangchangsheng.netlify.app/posts/2022-09-11-2/</link>
+      <pubDate>Sun, 11 Sep 2022 00:00:00 +0000</pubDate>
+      
+      <guid>https://wangchangsheng.netlify.app/posts/2022-09-11-2/</guid>
+      <description>前言  植物基因组普遍存在全基因组加倍融合的现象。在高通量测序read回帖时，常出现多重比对的现象，最终会导致不准确的变异鉴定。SNPable可以鉴定出基因组上多重比对的变异位点。
+   SNPable使用     参考基因组的准备   BWA索引参考基因组 模拟35bp的单端测序文件 回帖 生成mask参考基因组     BWA索引参考基因组  1 2  bwa index ref.fa samtools faidx ref.fa      模拟35bp的单端测序文件  1  splitfa ref.fa 35|split -l 20000000      回帖  1 2  bwa aln -R 1000000 -O 3 -E 3 ref.fa xaa &amp;gt; xaa.</description>
+    </item>
+    
+    <item>
+      <title>下载测序数据</title>
+      <link>https://wangchangsheng.netlify.app/posts/2022-03-16-/</link>
+      <pubDate>Wed, 16 Mar 2022 00:00:00 +0000</pubDate>
+      
+      <guid>https://wangchangsheng.netlify.app/posts/2022-03-16-/</guid>
+      <description>在新课题和新项目开展时，需要重复他人的实验以确定可靠的流程。一般在文献最后都会附上项目编号PRJNA。SRA数据库的层次结构是SRP(项目)-SRS(样本)-SRX(数据产生)-SRR(数据本身)。数据库的层级是PRJNA-SAMN。
+以高粱比较基因组数据集PRJNA513297为例。
+   NCBI SRA  目前NCBI正在将数据传输至亚马逊云AWS和谷歌云GS，美国境内服务器免费，其他的服务器收费，用户自己掏钱，由于正在迁移，NCBI也不保证数据的完整性。虽然也提供了亚马逊云的免费链接，但是国内实测速度奇慢无比。使用Aspera找不到SRA的下载链接，一般使用NCBI的工具prefetch或fastq-dump。
+先搜索项目号，获取项目详细信息。
+1 2 3 4 5 6  module load Singularity/3.1.1 # 下载数据,若数据量大于20G需加-X参数 awk -F &amp;#39;,&amp;#39; &amp;#39;{print $1}&amp;#39; sample.list|grep SRR|xargs -n 1 singularity exec -e ~/Singularity_lib/download.sif prefetch ## fastq-dump singularity exec -e ~/Singularity_lib/download.sif fastq-dump -A SRRXXX singularity exec -e ~/Singularity_lib/download.sif fastqer-dump -e threads SRRXXX      EMBL ENA  美国的NCBI的SRA与欧洲的EBI-EMBL以及日本的DDBJ数据库共享数据，我们可以使用Aspera在EBA数据中直接下载fastq文件。
+先搜索项目号，点击PRJNA数据集，下载TSV的Download report(无法复制链接在linux下载)。
+1 2  # 下载数据集，此处sample.list为ENA的TSV的Download report grep -v study_accession sample.</description>
+    </item>
+    
+    <item>
+      <title>R语言批量操作</title>
+      <link>https://wangchangsheng.netlify.app/posts/2022-03-15-r/</link>
+      <pubDate>Tue, 15 Mar 2022 00:00:00 +0000</pubDate>
+      
+      <guid>https://wangchangsheng.netlify.app/posts/2022-03-15-r/</guid>
+      <description>前言在数据分析过程中，总是需要批量操作，如批量保存文件或批量作图。baseR的解法十分简单，for或while循环即可，但不够优雅。下面以tidyverse自带数据diamonds为例，以优雅的tidyverse流代码实现批量操作。
+加载包和数据library(tidyverse)library(ggprism)data(&amp;quot;diamonds&amp;quot;)批量保存diamonds %&amp;gt;%group_nest(cut) %&amp;gt;%pwalk(.l = list(.$cut, .$data),.f = ~ write.table(x = .y,file = str_c(path, .x, &amp;quot;.txt&amp;quot;),col.names = FALSE,row.names = FALSE,quote = FALSE))批量作图diamonds %&amp;gt;%group_nest(cut) %&amp;gt;%mutate(plot = map(data, ~ ggplot(data = .x) + geom_boxplot(aes(x = clarity, y = price, fill = clarity)) +theme_prism() +scale_fill_prism(palette = &amp;quot;winter_bright&amp;quot;))) %&amp;gt;%walk2(.x = .</description>
+    </item>
+    
+  </channel>
+</rss>
