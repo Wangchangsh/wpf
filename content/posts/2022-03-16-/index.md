@@ -77,6 +77,12 @@ wget -c ftp://download.big.ac.cn/gsa/CRA000167/CRR057355/CRR057355_f1.fastq.gz
 wget -c -r -np -k -L -p  ftp://download.big.ac.cn/gsa/CRA000167/
 ```
 
+20221105更新，目前支持aspera下载，需先下载特定key文件。
+
+```powershell
+singularity exec -e ~/Singularity_lib/download.sif ascp -P 33001 -i ~/Config/aspera_download.key -QT -l 100m -k 1 -d aspera01@download.cncb.ac.cn:gsa2/CRA006583 .
+```
+
 ### CNSA
 
 国家基因库序列归档系统（CNSA）是一个归档全球组学数据的系统，致力于组学数据的存储、管理和共享，促进组学数据的再利用，推动生命科学的发展（有GSA还不够？）。目前支持aspera下载。
