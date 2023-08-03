@@ -1,0 +1,627 @@
+---
+title: 泛基因集分析
+author: changshengwang
+date: '2023-08-03'
+slug: []
+categories:
+  - Genomics
+tags:
+  - pangenome
+---
+
+
+
+<div id="泛基因分析" class="section level1">
+<h1>泛基因分析</h1>
+<p>基因是表型的基础。构建泛基因集是泛基因组分析的常见手段。</p>
+<p>利用Orthofinder构建个体间的同源基因和非同源基因的集合，同源基因集合中所有个体中均出现的同源基因集即为core基因，在大于1个个体中出现的同源基因集为Dispensable基因，非同源基因集为Private基因，若基因组数目较多，可适当调整阈值添加soft-core基因。</p>
+<div id="同源基因鉴定" class="section level4">
+<h4>同源基因鉴定</h4>
+<p>先试用bbmap修改基因组格式，使每行长度等于60，再利用agat保留最长的转录本，并转换为蛋白序列，最后利用Orthofinder鉴定同源基因集。</p>
+<pre class="shell"><code>reformat.sh in=genome.fa out=genome_new.fa fastawrap=60
+singularity exec -e ~/Singularity_lib/agat_0.8.sif agat_sp_keep_longest_isoform.pl -gff genome.gff3 -o genome_longest_isoform.gff3
+singularity exec -e ~/Singularity_lib/agat_0.8.sif agat_sp_extract_sequences.pl -gff genome_longest_isoform.gff3 -f genome_new.fa -p -o genome.pep.fa
+singularity exec -e ~/Singularity_lib/orthofinder_2.5.4.sif orthofinder -f 04.pep/ -t 20 -a 20</code></pre>
+<p>结果中的Orthogroups.tsv为同源基因集，Orthogroups_UnassignedGenes.tsv为非同源基因集。处理这两个数据集作为拟合泛基因集的输入。</p>
+<pre class="r"><code>group &lt;- read_tsv(&quot;Genomics/Genetribe/data/Orthogroups.tsv&quot;, show_col_types = FALSE) 
+ungroup &lt;-  read_tsv(&quot;Genomics/Genetribe/data/Orthogroups_UnassignedGenes.tsv&quot;, show_col_types = FALSE)
+
+tmp &lt;- group %&gt;%
+  bind_rows(ungroup) %&gt;%
+  mutate(ClusterID = row_number(),
+         across(.col = -ClusterID,
+                ~ if_else(is.na(.), &quot;-&quot;, .))) %&gt;%
+  select(ClusterID, everything(), -Orthogroup)
+
+write_tsv(tmp, &quot;Genomics/Genetribe/output/founder_orthogroups.tsv&quot;)</code></pre>
+<p>利用PanGP图形界面软件构建泛基因集，输出Pandata及拟合函数以作图。</p>
+</div>
+<div id="泛基因集拟合图" class="section level4">
+<h4>泛基因集拟合图</h4>
+<pre class="r"><code>suppressWarnings(suppressMessages(library(tidyverse)))
+suppressWarnings(suppressMessages(library(ggprism)))
+
+pangenome &lt;- function(x) {
+  return(1.33087e7*(x**0.001)- 1.32709e7)
+}
+coregenome &lt;- function(x) {
+  return(31775.5 * exp(-0.64 * x) + 20916.1)
+}
+
+path &lt;- &quot;C:/Users/wpf/Desktop/project/Multiomics/&quot;
+
+tmp &lt;- read_tsv(str_c(path, &quot;Genomics/Genetribe/output/homologs/founder_pandata.tsv&quot;), show_col_types = FALSE) %&gt;%
+  `colnames&lt;-`(c(&quot;num&quot;, &quot;pan&quot;, &quot;core&quot;))
+
+pan &lt;- tmp %&gt;%
+  select(num, pan) %&gt;%
+  filter(num != 8)
+
+core &lt;- tmp %&gt;%
+  select(num, core) %&gt;%
+  filter(num != 1 &amp; num != 8)
+
+curve &lt;- tibble(
+  num = seq(1, 8, 0.1),
+  pan = pangenome(num),
+  core = coregenome(num)
+) %&gt;%
+  pivot_longer(cols = -num)
+
+ggplot() +
+  geom_boxplot(data = pan,
+               mapping = aes(x = num,
+                             y = pan,
+                             group = num), 
+               width = 0.6,
+               color = &quot;#8F2D56&quot;) +
+  geom_boxplot(data = core,
+               mapping = aes(x = num,
+                             y = core,
+                             group = num),
+               width = 0.6,
+               color = &quot;#6AAFE6&quot;) +
+  geom_line(data = curve,
+            mapping = aes(x = num,
+                          y = value,
+                          colour = name)) +
+  scale_colour_manual(limits = c(&quot;pan&quot;, &quot;core&quot;),
+                      values = c(&quot;#8F2D56&quot;, &quot;#6AAFE6&quot;),
+                      labels = c(&quot;Pan-Gene&quot;, &quot;Core-Gene&quot;)) +
+  theme_prism() +
+  theme(legend.position = c(0.8, 0.5)) +
+  labs(x = &quot;Genome Number&quot;, y = &quot;Gene Cluster Number (K)&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/pangene-1.png" width="672" /></p>
+</div>
+<div id="泛基因集饼图" class="section level4">
+<h4>泛基因集饼图</h4>
+<pre class="r"><code>tmp &lt;- read_tsv(str_c(path, &quot;Genomics/Genetribe/output/homologs/founder_orthogroups.tsv&quot;), show_col_types = FALSE) %&gt;%
+  mutate(across(.col = -ClusterID,
+                ~ if_else(. == &quot;-&quot;, NA_character_, .))) %&gt;%
+  mutate(n = rowSums(is.na(.)),
+         type = case_when(
+           n == 0 ~ &quot;Core&quot;,
+           n == 7 ~ &quot;Private&quot;,
+           TRUE ~ &quot;Dispensable&quot;
+         )) 
+
+tmp2 &lt;- tmp %&gt;%
+  count(type) %&gt;%
+  arrange(desc(type)) %&gt;%
+  mutate(rate = 100*n/sum(n),
+         lab = cumsum(rate) - rate/2)
+
+ggplot(data = tmp2) +
+  geom_bar(mapping = aes(x = 2, 
+                         y = rate, 
+                         fill = type),
+           stat = &quot;identity&quot;,
+           color = &quot;white&quot;) +
+  coord_polar(theta = &quot;y&quot;, 
+              start = 0) +
+  geom_text(mapping = aes(x = 2,
+                          y = lab,
+                          label = signif(rate, digits = 4)), 
+            color = &quot;white&quot;) +
+  scale_fill_manual(values = c(&quot;#6AAFE6&quot;, &quot;#F6B352&quot;, &quot;#5c196b&quot;)) +
+  theme_void() +
+  theme(legend.position = &quot;none&quot;) +
+  xlim(0.5, 2.5)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/pangene%20pie%20chart-1.png" width="672" /></p>
+</div>
+<div id="泛基因集upset图" class="section level4">
+<h4>泛基因集upset图</h4>
+<pre class="r"><code>suppressWarnings(suppressMessages(library(ComplexUpset)))
+
+tmp2 &lt;- tmp %&gt;%
+  mutate(across(.col = -c(n, type, ClusterID),
+                ~ case_when(
+                  is.na(.) ~ 0,
+                  TRUE ~ 1
+                ))) %&gt;%
+  rename(NIP = nip,
+         MITAK = Mitak)
+
+name &lt;- rev(c(&quot;ZS97&quot;, &quot;MH63&quot;, &quot;9311&quot;, &quot;XS134&quot;, &quot;AUS449&quot;, &quot;MITAK&quot;, &quot;NIP&quot;, &quot;WYJ3&quot;))
+
+query_by_degree = function(data, groups, params_by_degree, ...) {
+  intersections = unique(upset_data(data, groups)$plot_intersections_subset)
+  lapply(
+    intersections,
+    FUN = function(x) {
+      members = str_split_1(x, &quot;-&quot;)
+      if (!(length(members) %in% names(params_by_degree))) {
+        stop(
+          paste(&#39;Missing specification of params for degree&#39;, length(members))
+        )
+      }
+      args = c(
+        list(intersect = members, ...),
+        params_by_degree[[length(members)]]
+      )
+      do.call(upset_query, args)
+    }
+  )
+}
+
+upset(data = tmp2,
+      intersect = name,
+      matrix = intersection_matrix(
+        geom = geom_point(size = 0.5)
+      ),
+      width_ratio = 0.1,
+      intersections = &quot;all&quot;,
+      sort_intersections_by = c(&quot;degree&quot;, &quot;cardinality&quot;),
+      sort_set = FALSE,
+      set_sizes = FALSE,
+      base_annotations = list(
+        &quot;Gene Cluster Number (K)&quot; = intersection_size(
+          counts = FALSE
+      ) + theme(panel.grid = element_blank(),
+                axis.line.y = element_line(colour = &quot;grey60&quot;))),
+      queries = query_by_degree(
+        tmp2,
+        name,
+        params_by_degree = list(
+          &quot;1&quot; = list(fill = &quot;#5c196b&quot;, color = &quot;#5c196b&quot;),
+          &quot;2&quot; = list(fill = &quot;#F6B352&quot;, color = &quot;#F6B352&quot;), 
+          &quot;3&quot; = list(fill = &quot;#F6B352&quot;, color = &quot;#F6B352&quot;),
+          &quot;4&quot; = list(fill = &quot;#F6B352&quot;, color = &quot;#F6B352&quot;),
+          &quot;5&quot; = list(fill = &quot;#F6B352&quot;, color = &quot;#F6B352&quot;),
+          &quot;6&quot; = list(fill = &quot;#F6B352&quot;, color = &quot;#F6B352&quot;),
+          &quot;7&quot; = list(fill = &quot;#F6B352&quot;, color = &quot;#F6B352&quot;),
+          &quot;8&quot; = list(fill = &quot;#6AAFE6&quot;, color = &quot;#6AAFE6&quot;)
+        ),
+        only_components=c(&quot;intersections_matrix&quot;, &quot;Gene Cluster Number (K)&quot;)
+      ))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/pangene%20upset-1.png" width="672" /></p>
+</div>
+<div id="泛基因集特征统计" class="section level4">
+<h4>泛基因集特征统计</h4>
+<div id="基因组统计" class="section level5">
+<h5>基因组统计</h5>
+<p>基因长度，外显子和内含子的长度和个数是基因的基本特征，我们想看看在核心基因和非核心间这些特征是否存在差异。可变剪接也是重要的特征，但我们的注释缺乏转录组的支撑，故可变剪接的注释准确性不高。</p>
+<p>利用agat根据gff提取基因特征</p>
+<pre class="shell"><code>singularity exec -e ~/Singularity_lib/agat_0.8.sif agat_convert_sp_gff2bed.pl --gff genome.gff -o genome.bed</code></pre>
+<pre class="r"><code>suppressWarnings(suppressMessages(library(ggsignif)))
+suppressWarnings(suppressMessages(library(data.table)))
+
+bedfile &lt;- fs::dir_ls(str_c(path, &quot;Genomics/Genetribe/data/Bed/founder/&quot;))
+
+bed &lt;- map_dfr(.x = bedfile,
+               .f = ~ fread(.),
+               .id = &quot;id&quot;) %&gt;%
+  mutate(taxa = str_replace(id, pattern = &quot;.*/&quot;, &quot;&quot;) %&gt;% str_sub(end = -5),
+         gene = str_split_i(V4, &quot;[\\.-]&quot;, 1),
+         genelength = V8 - V7,
+         exon = V10,
+         intron = exon - 1) %&gt;%
+  rowwise() %&gt;%
+  mutate(exonlength = sum(as.numeric(str_split_1(V11, &quot;,&quot;))),
+         intronlength = as.numeric(str_split_i(V12, &quot;,&quot;, exon)) - exonlength + as.numeric(str_split_i(V11, &quot;,&quot;, exon))) %&gt;%
+  select(taxa, gene, genelength, exon, intron, exonlength, intronlength)
+
+tmp2 &lt;- tmp %&gt;%
+  select(-c(ClusterID, n)) %&gt;%
+  pivot_longer(cols = -type,
+               names_to = &quot;taxa&quot;,
+               values_to = &quot;gene&quot;) %&gt;%
+  separate_longer_delim(cols = gene, delim = &quot;, &quot;) %&gt;%
+  drop_na() %&gt;%
+  mutate(gene = str_split_i(gene, &quot;\\.&quot;, 1)) %&gt;%
+  left_join(bed, by = c(&quot;taxa&quot;, &quot;gene&quot;)) %&gt;%
+  pivot_longer(cols = -c(type, taxa, gene),
+               names_to = &quot;group&quot;)
+
+tmp2 %&gt;%
+  nest(.by = group) %&gt;%
+  mutate(plot = map(.x = data,
+                    .f = ~ ggplot(data = .x,
+                                  mapping = aes(x = type,
+                                                y = value,
+                                                fill = type)) +
+                      geom_boxplot() +
+                      geom_signif(
+                        comparisons = list(c(&quot;Core&quot;, &quot;Dispensable&quot;), c(&quot;Dispensable&quot;, &quot;Private&quot;), c(&quot;Core&quot;, &quot;Private&quot;)),
+                        map_signif_level = TRUE,
+                        textsize = 6,
+                        step_increase = 0.1
+                      ) +
+                      scale_fill_manual(values = c(&quot;#6AAFE6&quot;, &quot;#F6B352&quot;, &quot;#5c196b&quot;)) +
+                      scale_x_discrete(limits = c(&quot;Core&quot;, &quot;Dispensable&quot;, &quot;Private&quot;),
+                                       labels = c(&quot;Core\n(n = 193548)&quot;, &quot;Dispensable\n(n = 169466)&quot;, &quot;Private\n(n = 16202)&quot;)) +
+                      theme_prism() +
+                      theme(legend.position = &quot;none&quot;,
+                            axis.text.x = element_text(angle = 45, hjust = 0.4)) +
+                      labs(x = NULL, y = NULL))) %&gt;%
+  walk2(.x = .$group,
+        .y = .$plot,
+        .f = ~ print(.y))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/gene%20stat-1.png" width="672" /><img src="{{< blogdown/postref >}}index_files/figure-html/gene%20stat-2.png" width="672" /><img src="{{< blogdown/postref >}}index_files/figure-html/gene%20stat-3.png" width="672" /><img src="{{< blogdown/postref >}}index_files/figure-html/gene%20stat-4.png" width="672" /><img src="{{< blogdown/postref >}}index_files/figure-html/gene%20stat-5.png" width="672" /></p>
+</div>
+<div id="群体遗传统计" class="section level5">
+<h5>群体遗传统计</h5>
+<p>Ka/Ks表示非同义替换位点替换次数(Ka)与同义替换位点替换次数(Ks)的比值，这个比例可用于判断这个基因是否存在选择压力。</p>
+<p>一把来说，Ka &gt;&gt; Ks或者Ka/Ks &gt;&gt; 1，基因受正选择(positive selection)；Ka＝Ks或者Ka/Ks = 1，基因中性进化(neutral evolution)；Ka &lt;&lt; Ks或者Ka/Ks &lt;&lt; 1，基因受纯化选择(purify selection)。</p>
+<p>先将Orthofinder的同源基因集按core和dispensable分类</p>
+<pre class="r"><code>tmp %&gt;%
+  select(-n) %&gt;%
+  pivot_longer(cols = -c(ClusterID, type),
+               names_to = &quot;taxa&quot;,
+               values_to = &quot;gene&quot;) %&gt;%
+  separate_longer_delim(cols = gene, delim = &quot;, &quot;) %&gt;%
+  drop_na() %&gt;%
+  mutate(gene = str_split_i(gene, &quot;\\.&quot;, 1)) %&gt;%
+  group_by(ClusterID) %&gt;%
+  summarise(homologs = str_c(gene, collapse = &quot;\t&quot;)) %&gt;%
+  left_join(tmp, by = &quot;ClusterID&quot;) %&gt;%
+  select(type, homologs) %&gt;%
+  nest(.by = type) %&gt;%
+  walk2(.x = .$type,
+        .y = .$data,
+        .f = ~ write_tsv(.y, file = str_c(&quot;Genomics/Genetribe/output/homologs/&quot;, .x, &quot;homologs.tsv&quot;), col_names = FALSE))
+
+tmp %&gt;%
+  select(-n) %&gt;%
+  pivot_longer(cols = -c(ClusterID, type),
+               names_to = &quot;taxa&quot;,
+               values_to = &quot;gene&quot;) %&gt;%
+  separate_longer_delim(cols = gene, delim = &quot;, &quot;) %&gt;%
+  drop_na() %&gt;%
+  mutate(gene = str_split_i(gene, &quot;\\.&quot;, 1)) %&gt;%
+  select(type, gene) %&gt;%
+  nest(.by = type) %&gt;%
+  walk2(.x = .$type,
+        .y = .$data,
+        .f = ~ write_tsv(.y, file = str_c(&quot;Genomics/Genetribe/output/homologs/&quot;, .x, &quot;gene.tsv&quot;), col_names = FALSE))</code></pre>
+<p>准备输入文件，先提取最长转录本的cds序列，再转换为蛋白质序列，最后根据基因ID分类</p>
+<p>利用ParaAT.pl和KaKs_Calculator计算每个同源基因集的Ka/Ks, 部分同源基因集会出现多重比对的长度不等的情况，超出解决范围，只能留待将来再用到的时候考虑另一个工具或另一种同源基因数据集。</p>
+<pre class="shell"><code>module load ClustalW2/2.1
+
+ParaAT.pl -h Dispensablehomologs.tsv -a ../03.groupfasta/dispensable.pep.fa -n ../03.groupfasta/dispensable.cds.fa -p proc -m clustalw2 -f axt -o dispensableaxt
+
+KaKs -i dispensableaxt/ClusterID1.cds_aln.axt -O ClusterID1.kaks</code></pre>
+<p>合并kaks</p>
+<pre class="r"><code>file &lt;- fs::dir_ls(path = &quot;Genomics/Genetribe/data/KaKs/&quot;, type = &quot;file&quot;, recurse = TRUE)
+
+Kaks &lt;- map_dfr(.x = file, 
+                .f = ~ read_tsv(., show_col_types = FALSE),
+                .id = &quot;file&quot;)
+
+write_tsv(Kaks, file = &quot;Genomics/Genetribe/output/homologs/KaKs.tsv&quot;)</code></pre>
+<pre class="r"><code>Kaks &lt;- read_tsv(str_c(path, &quot;Genomics/Genetribe/output/homologs/KaKs.tsv&quot;), show_col_types = FALSE) %&gt;%
+  mutate(type = str_split_i(file, &quot;/&quot;, 5) %&gt;% str_replace(&quot;KaKs&quot;, &quot;&quot;)) %&gt;%
+  select(type, Ka, Ks, `Ka/Ks`) %&gt;%
+  drop_na() %&gt;%
+  rename(Ka_Ks = `Ka/Ks`) %&gt;%
+  pivot_longer(cols = -type,
+               names_to = &quot;group&quot;)
+
+Kaks %&gt;%
+  filter(value &lt;= 2) %&gt;%
+  nest(.by = group) %&gt;%
+  mutate(plot = map(.x = data,
+                    .f = ~ ggplot(data = .x,
+                                    mapping = aes(x = type,
+                                                  y = value,
+                                                  fill = type)) +
+                    geom_boxplot() +
+                    geom_signif(
+                      comparisons = list(c(&quot;core&quot;, &quot;dispensable&quot;)),
+                      map_signif_level = TRUE,
+                      textsize = 6,
+                      step_increase = 0.1
+                    ) +
+                    scale_fill_manual(values = c(&quot;#6AAFE6&quot;, &quot;#F6B352&quot;)) +
+                    scale_x_discrete(limits = c(&quot;core&quot;, &quot;dispensable&quot;),
+                                     labels = c(&quot;Core&quot;, &quot;Dispensable&quot;)) +
+                    theme_prism() +
+                    theme(legend.position = &quot;none&quot;,
+                          axis.text.x = element_text(angle = 45, hjust = 0.4)) +
+                    labs(x = NULL, y = NULL))) %&gt;%
+  walk2(.x = .$group,
+        .y = .$plot,
+        .f = ~ print(.y))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/kaks%20plot-1.png" width="672" /><img src="{{< blogdown/postref >}}index_files/figure-html/kaks%20plot-2.png" width="672" /><img src="{{< blogdown/postref >}}index_files/figure-html/kaks%20plot-3.png" width="672" /></p>
+<p>核苷酸多样度（θπ和Watterson θw）反映了群体内不同个体DNA序列间的观察平均碱基差异占比，被广泛用于表征种群的遗传多样度水平。Tajima’s D是由日本研究员田田文雄（Fumio Tajima）创建的群体基因检验统计数据，可以用于区分DNA序列是随机进化还是受到自然选择。</p>
+<p>利用533群体的SNP数据来鉴定核心基因和非核心基因的群体遗传参数。</p>
+<p>以前利用vcftools可以直接计算窗口内的pi和TajimaD，对于以基因为窗口则使用python包tajimas-d。核心思路是先提取各个基因的VCF，再利用seqkit和bcftools生成各个样本的序列，再利用tajimas-d计算θπ，θw和tajimaD值，其中θπ和θw需除以各自基因的全长。</p>
+<pre class="r"><code>nip &lt;- read_tsv(&quot;Genomics/Genetribe/data/Bed/founder/nip.bed&quot;, show_col_types = FALSE, col_names = FALSE) %&gt;%
+  mutate(chrom = str_c(&quot;Chr&quot;, as.numeric(str_sub(X1, start = 4))),
+         gene = str_split_i(X4, &quot;\\.&quot;, 1)) %&gt;%
+  select(chrom, X2, X3, gene)
+
+write_tsv(nip, file = &quot;Genomics/Genetribe/output/founder/nip.bed&quot;, col_names = FALSE)</code></pre>
+<pre class="shell"><code>cat nip.bed |while read i j k l;do bcftools filter 533.vcf.gz -r ${i}:${j}-${k} -Oz -o ${l}.vcf.gz;bcftools index ${l}.vcf.gz;seqkit faidx genome.fa ${i}:${j}-${k} &gt; ${l}.fa;done
+
+cat gene.list|while read i;do mkdir ${i}fasta; cat sample.list|while read j;do bcftools consensus -f ${i}.fa ${i}.vcf.gz -s ${j} -p ${j} &gt; ${i}fasta/${j}.fa;done;cat ${i}fasta/*.fa &gt; ../VCF2fasta/${i}.fa;rm -rf ${i}fasta/;done
+
+cat gene.list|while read i;do bsub -J ${i} -n 1 -q short &quot;singularity exec -e ~/Singularity_lib/tajimas_d.sif tajimas_d -f ../VCF2fasta/${i}.fa -p &gt; pi/${i}.pi;singularity exec -e ~/Singularity_lib/tajimas_d.sif tajimas_d -f ../VCF2fasta/${i}.fa -w &gt; watterson/${i}.watterson;singularity exec -e ~/Singularity_lib/tajimas_d.sif tajimas_d -f ../VCF2fasta/${i}.fa -t &gt; tajima/${i}.tajima&quot;;done
+grep &quot;&quot; pi/*pi &gt; nipgene.pi
+grep &quot;&quot; tajima/*tajima &gt; nipgene.tajima
+grep &quot;&quot; watterson/*watterson &gt; nipgene.watterson</code></pre>
+<pre class="r"><code>nipbed &lt;- read_tsv(str_c(path, &quot;Genomics/Genetribe/output/founder/nip.bed&quot;), col_names = FALSE, show_col_types = FALSE) %&gt;%
+  `colnames&lt;-`(c(&quot;chrom&quot;, &quot;start&quot;, &quot;end&quot;, &quot;gene&quot;))
+
+pi &lt;- read_tsv(str_c(path, &quot;Genomics/Genetribe/data/PI/nipgene.pi&quot;), show_col_types = FALSE, col_names = FALSE) %&gt;%
+  mutate(gene = str_split_i(X1, &quot;[/.]&quot;, 2)) %&gt;%
+  rename(pi = X3) %&gt;%
+  select(gene, pi) %&gt;%
+  filter(pi != 0)
+
+watterson &lt;- read_tsv(str_c(path, &quot;Genomics/Genetribe/data/PI/nipgene.watterson&quot;), show_col_types = FALSE, col_names = FALSE) %&gt;%
+  mutate(gene = str_split_i(X1, &quot;[/.]&quot;, 2)) %&gt;%
+  rename(watterson = X2) %&gt;%
+  select(gene, watterson) %&gt;%
+  filter(watterson != 0)
+
+tajima &lt;- read_tsv(str_c(path, &quot;Genomics/Genetribe/data/PI/nipgene.tajima&quot;), show_col_types = FALSE, col_names = FALSE) %&gt;%
+  mutate(gene = str_split_i(X1, &quot;[/.]&quot;, 2)) %&gt;%
+  rename(tajima = X3) %&gt;%
+  select(gene, tajima) %&gt;%
+  filter(tajima != 0)
+
+tmp2 &lt;- tmp %&gt;%
+  select(-c(ClusterID, n)) %&gt;%
+  pivot_longer(cols = -type,
+               names_to = &quot;taxa&quot;,
+               values_to = &quot;gene&quot;) %&gt;%
+  separate_longer_delim(cols = gene, delim = &quot;, &quot;) %&gt;%
+  drop_na() %&gt;%
+  filter(taxa == &quot;nip&quot;) %&gt;%
+  mutate(gene = str_split_i(gene, &quot;\\.&quot;, 1)) %&gt;%
+  left_join(nipbed, by = &quot;gene&quot;) %&gt;%
+  left_join(pi, by = &quot;gene&quot;) %&gt;%
+  left_join(watterson, by = &quot;gene&quot;) %&gt;%
+  left_join(tajima, by = &quot;gene&quot;) %&gt;%
+  mutate(len = end - start,
+         pi = pi/len,
+         watterson = watterson/len) %&gt;%
+  select(type, pi, watterson, tajima) %&gt;%
+  pivot_longer(cols = -type)
+
+tmp2 %&gt;%
+  nest(.by = name) %&gt;%
+  mutate(plot = map(.x = data,
+                    .f = ~ ggplot(data = .x,
+                                  mapping = aes(x = type,
+                                                y = value,
+                                                fill = type)) +
+                      geom_boxplot() +
+                      geom_signif(
+                        comparisons = list(c(&quot;Core&quot;, &quot;Dispensable&quot;), c(&quot;Dispensable&quot;, &quot;Private&quot;), c(&quot;Core&quot;, &quot;Private&quot;)),
+                        map_signif_level = TRUE,
+                        textsize = 6,
+                        step_increase = 0.1
+                      ) +
+                      scale_fill_manual(values = c(&quot;#6AAFE6&quot;, &quot;#F6B352&quot;, &quot;#5c196b&quot;)) +
+                      scale_x_discrete(limits = c(&quot;Core&quot;, &quot;Dispensable&quot;, &quot;Private&quot;),
+                                       labels = c(&quot;Core\n(n = 19809)&quot;, &quot;Dispensable\n(n = 12455)&quot;, &quot;Private\n(n = 2234)&quot;)) +
+                      theme_prism() +
+                      theme(legend.position = &quot;none&quot;,
+                            axis.text.x = element_text(angle = 45, hjust = 0.4)) +
+                      labs(x = NULL, y = NULL))) %&gt;%
+  walk2(.x = .$name,
+        .y = .$plot,
+        .f = ~ print(.y))</code></pre>
+<pre><code>## Warning: Removed 21290 rows containing non-finite values (`stat_boxplot()`).</code></pre>
+<pre><code>## Warning: Removed 21290 rows containing non-finite values (`stat_signif()`).</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/popgentic%20stat-1.png" width="672" /></p>
+<pre><code>## Warning: Removed 21282 rows containing non-finite values (`stat_boxplot()`).</code></pre>
+<pre><code>## Warning: Removed 21282 rows containing non-finite values (`stat_signif()`).</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/popgentic%20stat-2.png" width="672" /></p>
+<pre><code>## Warning: Removed 21301 rows containing non-finite values (`stat_boxplot()`).</code></pre>
+<pre><code>## Warning: Removed 21301 rows containing non-finite values (`stat_signif()`).</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/popgentic%20stat-3.png" width="672" />
+##### 转录水平统计</p>
+<p>利用明恢63四个组织的转录组定量来探究核心基因和非核心基因的转录水平关系。</p>
+<pre class="shell"><code># HISAT2 + Stringtie(stringtie会出现单个基因ID对应多个转录本TPM的现象，目前我的解决方式是直接相加)
+i=$1
+
+fastp -i ../01.Raw_seq/${i}_1.fq.gz -o ../02.paired/${i}_1.paired.fq.gz -I ../01.Raw_seq/${i}_2.fq.gz -O ../02.paired/${i}_2.paired.fq.gz -j ../02.paired/${i}.json -h ../02.paired/${i}.html -c -w 2 &gt; ../00.log/fastp/${i}.log 2&gt;&amp;1
+
+singularity exec -e ~/Singularity_lib/RNAseq.sif hisat2 -p 8 -x /public/home/pfwang/wpf/Datasets/Reference/Rice/NIP_MSU/HISAT2/nip -1 ../02.paired/${i}_1.paired.fq.gz -2 ../02.paired/${i}_2.paired.fq.gz -S ../03.Bam/${i}.sam &gt; ../00.log/hisat2/${i}.log 2&gt;&amp;1
+
+singularity exec -e ~/Singularity_lib/RNAseq.sif samtools view -@ 8 -b ../03.Bam/${i}.sam| singularity exec -e ~/Singularity_lib/RNAseq.sif samtools sort -@ 8 -o ../03.Bam/${i}.sort.bam
+singularity exec -e ~/Singularity_lib/RNAseq.sif samtools index ../03.Bam/${i}.sort.bam
+rm ../03.Bam/${i}.sam
+
+mkdir -p ../04.Count/${i}
+singularity exec -e ~/Singularity_lib/RNAseq.sif stringtie -B -e -p 8 -G ~/wpf/Datasets/Reference/Rice/NIP_MSU/nip.gff3 -o ../04.Count/${i}/transcripts.gtf -A ../04.Count/${i}/gene_abundances.tsv ../03.Bam/${i}.sort.bam</code></pre>
+<p>利用R语言合并多个样本的表达量文件</p>
+<pre class="r"><code>file &lt;- fs::dir_ls(path = &quot;RNAseq/ZSMH/data/&quot;, type = &quot;file&quot;, recurse = TRUE)
+
+tmptpm &lt;- map_dfr(.x = file,
+               .f = ~ read_tsv(., show_col_types = FALSE) %&gt;%
+                 select(`Gene ID`, TPM),
+               .id = &quot;file&quot;) %&gt;%
+  rename(gene = `Gene ID`) %&gt;%
+  mutate(taxa = str_split_i(file, &quot;/&quot;, 4)) %&gt;%
+  group_by(gene, taxa) %&gt;%
+  summarise(TPM = sum(TPM)) %&gt;%
+  pivot_wider(id_cols = gene,
+              names_from = taxa,
+              values_from = TPM)
+
+write_tsv(tmptpm, file = &quot;RNAseq/ZSMH/output/TPM.tsv&quot;)</code></pre>
+<pre class="r"><code>TPM &lt;- read_tsv(str_c(path, &quot;RNAseq/ZSMH/output/TPM.tsv&quot;), show_col_types = FALSE) %&gt;%
+  select(gene, starts_with(&quot;flagleaf_MH63_HTLD&quot;), starts_with(&quot;panicle_MH63_HTLD&quot;), 
+         starts_with(&quot;root_MH63_HTLD&quot;), starts_with(&quot;shoot_MH63_HTLD&quot;)) %&gt;%
+  pivot_longer(cols = -gene,
+               names_sep = &quot;_MH63_HTLD_&quot;,
+               names_to = c(&quot;issue&quot;, &quot;rep&quot;)) %&gt;%
+  group_by(gene, issue) %&gt;%
+  summarise(value = sum(value))</code></pre>
+<pre><code>## `summarise()` has grouped output by &#39;gene&#39;. You can override using the
+## `.groups` argument.</code></pre>
+<pre class="r"><code>tmp2 &lt;- tmp %&gt;%
+  select(-c(ClusterID, n)) %&gt;%
+  pivot_longer(cols = -type,
+               names_to = &quot;taxa&quot;,
+               values_to = &quot;gene&quot;) %&gt;%
+  separate_longer_delim(cols = gene, delim = &quot;, &quot;) %&gt;%
+  drop_na() %&gt;%
+  mutate(gene = str_split_i(gene, &quot;\\.&quot;, 1)) %&gt;%
+  filter(taxa == &quot;nip&quot;) %&gt;%
+  left_join(TPM, by = &quot;gene&quot;, multiple = &quot;all&quot;) %&gt;%
+  group_by(gene) %&gt;%
+  filter(any(value &gt; 0))
+
+tmp2 %&gt;%
+  ungroup() %&gt;%
+  nest(.by = issue) %&gt;%
+  mutate(plot = map(.x = data,
+                    .f = ~ ggplot(data = .x,
+                                  mapping = aes(x = type,
+                                                y = log(value + 1),
+                                                fill = type)) +
+                      geom_boxplot() +
+                      geom_signif(
+                        comparisons = list(c(&quot;Core&quot;, &quot;Dispensable&quot;), c(&quot;Dispensable&quot;, &quot;Private&quot;), c(&quot;Core&quot;, &quot;Private&quot;)),
+                        map_signif_level = TRUE,
+                        textsize = 6,
+                        step_increase = 0.1
+                      ) +
+                      scale_fill_manual(values = c(&quot;#6AAFE6&quot;, &quot;#F6B352&quot;, &quot;#5c196b&quot;)) +
+                      scale_x_discrete(limits = c(&quot;Core&quot;, &quot;Dispensable&quot;, &quot;Private&quot;),
+                                       labels = c(&quot;Core\n(n = 22197)&quot;, &quot;Dispensable\n(n = 12972)&quot;, &quot;Private\n(n = 2495)&quot;)) +
+                      theme_prism() +
+                      theme(legend.position = &quot;none&quot;,
+                            axis.text.x = element_text(angle = 45, hjust = 0.4)) +
+                      labs(x = NULL, y = NULL))) %&gt;%
+  walk2(.x = .$issue,
+        .y = .$plot,
+        .f = ~ print(.y))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/transcript%20quantitative-1.png" width="672" /><img src="{{< blogdown/postref >}}index_files/figure-html/transcript%20quantitative-2.png" width="672" /><img src="{{< blogdown/postref >}}index_files/figure-html/transcript%20quantitative-3.png" width="672" /><img src="{{< blogdown/postref >}}index_files/figure-html/transcript%20quantitative-4.png" width="672" /></p>
+</div>
+<div id="富集分析" class="section level5">
+<h5>富集分析</h5>
+<p>基因富集分析，是分析基因表达信息的一种方法。富集是将基因按照先验知识，即基因组注释信息，对基因进行分类的过程，能够帮助寻找到的基因是否存在共性。</p>
+<p>我们利用eggNOG-Mapper注释基因，再使用R包clusterProfiler进行富集分析。</p>
+<pre class="shell"><code># 准备比对数据库文件，解压使用
+wget -c http://eggnog6.embl.de/download/emapperdb-5.0.2/eggnog.db.gz
+wget -c http://eggnog6.embl.de/download/emapperdb-5.0.2/eggnog_proteins.dmnd.gz
+
+singularity exec -e ~/Singularity_lib/agat_0.8.sif agat_sp_extract_sequences.pl -g ../00.gff/${i}_longest_isoform.gff -f ../00.gff/${i}_reformat.fa -t cds -o ${i}.cds
+singularity exec -e ~/Singularity_lib/eggnog-mapper.sif emapper.py -i ../01.cds/${i}.cds --itype CDS -m diamond --data_dir ~/wpf/Datasets/Eggnog/ -o ${i} --cpu 20</code></pre>
+<p>准备GO注释文件，使用python代码get_go_term.py</p>
+<pre class="python"><code>#get_go_term.py 
+import sys 
+raw_file = open(sys.argv[1]).read()  
+with open(&quot;go_term.list&quot;,&quot;w&quot;) as output:
+     for go_term in raw_file.split(&quot;[Term]&quot;):
+         go_id = &#39;&#39;
+         name = &#39;&#39; 
+         namespace = &#39;&#39;
+         for line in go_term.split(&quot;\n&quot;):
+             if str(line).startswith(&quot;id&quot;) and &quot;GO:&quot; in line:
+                 go_id = line.rstrip().split(&quot; &quot;)[1]
+             if str(line).startswith(&quot;name:&quot;):
+                 name = line.rstrip().split(&quot;: &quot;)[1]
+             if str(line).startswith(&quot;namespace&quot;):
+                 namespace = line.rstrip().split(&quot; &quot;)[1]
+         term = go_id + &#39;\t&#39; + name + &#39;\t&#39; + namespace + &#39;\n&#39;
+         if &#39;&#39; != go_id:
+             output.write(term)</code></pre>
+<pre class="shell"><code>wget -c http://purl.obolibrary.org/obo/go/go-basic.obo
+python get_go_term.py go-basic.obo</code></pre>
+<p>利用R包clusterProfiler进行富集分析</p>
+<pre class="r"><code>suppressWarnings(suppressMessages(library(clusterProfiler)))
+
+file &lt;- fs::dir_ls(path = str_c(path, &quot;Genomics/GOanno/data/founder/&quot;))
+
+go_anno &lt;- map_dfr(.x = file,
+                   .f = ~ fread(., fill = TRUE, skip = 4)) %&gt;%
+  select(`#query`, GOs) %&gt;%
+  rename(gene = `#query`) %&gt;%
+  filter(str_starts(gene, &quot;Os&quot;)) %&gt;%
+  filter(GOs != &quot;-&quot;) %&gt;%
+  rowwise() %&gt;%
+  mutate(gene = str_split_i(gene, pattern = &quot;[-\\.]&quot;, 1)) %&gt;%
+  separate_rows(GOs, sep = &quot;,&quot;) %&gt;%
+  select(GOs, gene)
+
+go_class &lt;- read_tsv(str_c(path, &quot;Genomics/GOanno/data/go_term.list&quot;), col_names = FALSE, show_col_types = FALSE) %&gt;%
+  select(X1, X2)
+
+tmp &lt;- read_tsv(str_c(path, &quot;Genomics/Genetribe/output/homologs/founder_orthogroups.tsv&quot;), show_col_types = FALSE) %&gt;%
+  mutate(across(.col = -ClusterID,
+                ~ if_else(. == &quot;-&quot;, NA_character_, .))) %&gt;%
+  mutate(n = rowSums(is.na(.)),
+         type = case_when(
+           n == 0 ~ &quot;Core&quot;,
+           n == 7 ~ &quot;Private&quot;,
+           TRUE ~ &quot;Dispensable&quot;
+         )) %&gt;% 
+  select(-c(ClusterID, n)) %&gt;%
+  pivot_longer(cols = -type,
+               names_to = &quot;taxa&quot;,
+               values_to = &quot;gene&quot;) %&gt;%
+  separate_longer_delim(cols = gene, delim = &quot;, &quot;) %&gt;%
+  drop_na() %&gt;%
+  mutate(gene = str_split_i(gene, &quot;\\.&quot;, 1))
+
+core &lt;- tmp %&gt;%
+  filter(type == &quot;Core&quot;) %&gt;%
+  pull(gene)
+
+go_rich &lt;- enricher(gene = core,
+                    TERM2GENE = go_anno,
+                    TERM2NAME = go_class,
+                    pvalueCutoff = 0.05,
+                    pAdjustMethod = &#39;BH&#39;,
+                    qvalueCutoff = 0.2)
+
+res &lt;- go_rich@result %&gt;%
+  as_tibble() %&gt;%
+  separate(col = GeneRatio,
+           into = c(&quot;Count&quot;, &quot;Total&quot;)) %&gt;%
+  select(Description, Count, Total, p.adjust) %&gt;%
+  mutate(across(.col = -Description,
+                ~ as.numeric(.)),
+         GeneRatio = Count/Total) %&gt;%
+  filter(p.adjust &lt; 1e-5) %&gt;%
+  arrange(desc(GeneRatio)) %&gt;%
+  slice_head(n = 15) %&gt;%
+  mutate(Des = factor(Description, levels = rev(Description)),
+         pvalue = -log10(p.adjust))
+
+ggplot(data = res) +
+  geom_point(mapping = aes(x = GeneRatio, 
+                           y = Des, 
+                           size = Count, 
+                           color = pvalue), 
+             shape = 20) +
+  scale_color_distiller(palette = &quot;YlOrRd&quot;, direction = 1) +
+  scale_size(breaks = seq(360, 400, 20), range = c(8, 12)) +
+  theme(legend.position = &quot;bottom&quot;,
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        panel.background = element_rect(fill = &quot;white&quot;,
+                                        colour = &quot;black&quot;,
+                                        linewidth = 1.5)) +
+  labs(y = NULL, size = &quot;Gene number&quot;, color = &quot;-log10(p.adjust)&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/enrich-1.png" width="672" /></p>
+</div>
+</div>
+</div>
