@@ -1,0 +1,179 @@
+---
+title: 基因单倍型的地理分布可视化
+author: changshengwang
+date: '2023-08-04'
+slug: []
+categories:
+  - Visualize
+tags:
+  - R
+  - ggplot
+---
+
+
+
+<div id="前言" class="section level1">
+<h1>前言</h1>
+<p>地理隔离是物种遗传多样性的基础。不同地理分布的种群往往具有不同的基因分布。我们使用水稻某基因的单倍型和中国各省份降水量数据对该基因的单倍型进行可视化。</p>
+<div id="单倍型生成" class="section level2">
+<h2>单倍型生成</h2>
+<p>利用genehapR包将vcf转换为单倍型数据</p>
+<pre class="r"><code>suppressWarnings(suppressMessages(library(tidyverse)))
+suppressWarnings(suppressMessages(library(geneHapR)))
+
+vcf &lt;- import_vcf(&quot;C:/Users/wpf/Desktop/project/Popgenetic/whj/data/zfpvg.vcf&quot;)</code></pre>
+<pre><code>## Scanning file to determine attributes.
+## File attributes:
+##   meta lines: 17
+##   header_line: 18
+##   variant count: 2
+##   column count: 4735
+## 
+Meta line 17 read in.
+## All meta lines processed.
+## gt matrix initialized.
+## Character matrix gt created.
+##   Character matrix gt rows: 2
+##   Character matrix gt cols: 4735
+##   skip: 0
+##   nrows: 2
+##   row_num: 0
+## 
+Processed variant: 2
+## All variants processed</code></pre>
+<pre class="r"><code>hap &lt;- vcf2hap(vcf) %&gt;%
+  filter(str_starts(Hap, &quot;H&quot;)) %&gt;%
+  mutate(Hap = if_else(Hap == &quot;H001&quot;, &quot;A&quot;, &quot;B&quot;),
+         taxa = str_replace(Accession, &quot;\\.&quot;, &quot;-&quot;)) %&gt;%
+  select(taxa, Hap)</code></pre>
+<pre><code>## Extracting gt element GT</code></pre>
+<pre class="r"><code># 选择中国的省份，并将部分省份合并
+
+chinapro &lt;- c(&quot;Jiangsu&quot;, &quot;Hunan&quot;, &quot;Taiwan&quot;, &quot;Jiangxi&quot;, &quot;Guangdong&quot;, &quot;Sichuan&quot;, &quot;Anhui&quot;, &quot;Zhejiang&quot;, &quot;Yunnan&quot;, 
+              &quot;Hubei&quot;, &quot;Fujian&quot;, &quot;Guizhou&quot;, &quot;Liaoning; China&quot;, &quot;yunnan&quot;, &quot;Heilongjiang&quot;, &quot;Hebei&quot;, &quot;Guangxi&quot;, &quot;Henan&quot;,
+              &quot;Shanghai&quot;, &quot;Xizang&quot;, &quot;Shanxi&quot;, &quot;Liaoning&quot;, &quot;Guangxi; China&quot;, &quot;Hainan&quot;, &quot;Tianjin&quot;, &quot;Hong Kong&quot;, &quot;Beijing&quot;,
+              &quot;Jilin&quot;)
+
+key &lt;- tibble(
+  name = c(&quot;Jiangsu&quot;, &quot;Hunan&quot;, &quot;Taiwan&quot;, &quot;Jiangxi&quot;, &quot;Guangdong&quot;, &quot;Sichuan&quot;, &quot;Anhui&quot;, &quot;Zhejiang&quot;, &quot;Yunnan&quot;, 
+           &quot;Hubei&quot;, &quot;Fujian&quot;, &quot;Guizhou&quot;, &quot;Heilongjiang&quot;, &quot;Hebei&quot;, &quot;Guangxi&quot;, &quot;Henan&quot;,&quot;Shanghai&quot;, &quot;Xizang&quot;, 
+           &quot;Shanxi&quot;, &quot;Liaoning&quot;, &quot;Hainan&quot;, &quot;Tianjin&quot;, &quot;Beijing&quot;, &quot;Jilin&quot;),
+  value = c(&quot;Jiangsu&quot;, &quot;Hunan&quot;, &quot;Taiwan&quot;, &quot;Jiangxi&quot;, &quot;Guangdong&quot;, &quot;Sichuan&quot;, &quot;Anhui&quot;, &quot;Zhejiang&quot;, &quot;Yunnan&quot;, 
+            &quot;Hubei&quot;, &quot;Fujian&quot;, &quot;Guizhou&quot;, &quot;Jilin&quot;, &quot;Hebei&quot;, &quot;Guangxi&quot;, NA,&quot;Jiangsu&quot;, NA,  
+            NA, &quot;Jilin&quot;, NA, &quot;Hebei&quot;, &quot;Hebei&quot;, &quot;Jilin&quot;)
+) %&gt;%
+  pull(value, name = name)
+
+group &lt;- readxl::read_excel(&quot;C:/Users/wpf/Desktop/project/Popgenetic/VarMap/taxainfo.xlsx&quot;) %&gt;%
+  select(`Cultivar ID`, Location) %&gt;%
+  rename(taxa = `Cultivar ID`) %&gt;%
+  filter(Location %in% chinapro) %&gt;%
+  mutate(Location = case_when(Location == &quot;Liaoning; China&quot; ~ &quot;Liaoning&quot;,
+                              Location == &quot;yunnan&quot; ~ &quot;Yunnan&quot;,
+                              Location == &quot;Guangxi; China&quot; ~ &quot;Guangxi&quot;,
+                              TRUE ~ Location)) %&gt;%
+  mutate(Location = recode(Location, !!!key, .default = NA_character_)) %&gt;%
+  na.omit() %&gt;%
+  left_join(hap, by = &quot;taxa&quot;) %&gt;%
+  count(Location, Hap) %&gt;%
+  pivot_wider(names_from = Hap,
+              values_from = n,
+              values_fill = 0)
+
+location &lt;- group %&gt;%
+  pull(Location)
+
+info &lt;- readxl::read_excel(&quot;C:/Users/wpf/Desktop/project/Popgenetic/VarMap/Raw Data submission.xls&quot;, skip = 11, col_names = FALSE) %&gt;%
+  select(3, 4, 5) %&gt;%
+  `colnames&lt;-`(c(&quot;Location&quot;, &quot;lat&quot;, &quot;long&quot;)) %&gt;%
+  filter(Location %in% location) %&gt;%
+  distinct(Location, .keep_all = TRUE) </code></pre>
+<pre><code>## New names:
+## • `` -&gt; `...1`
+## • `` -&gt; `...2`
+## • `` -&gt; `...3`
+## • `` -&gt; `...4`
+## • `` -&gt; `...5`
+## • `` -&gt; `...6`
+## • `` -&gt; `...7`
+## • `` -&gt; `...8`
+## • `` -&gt; `...9`</code></pre>
+<pre class="r"><code>group2 &lt;- group %&gt;%
+  left_join(info, by = &quot;Location&quot;) %&gt;%
+  distinct(Location, .keep_all = TRUE) %&gt;%
+  select(long, lat, Location, A, B) %&gt;%
+  mutate(radius = (A + B)/10,
+         long = as.numeric(long),
+         lat = as.numeric(lat))
+
+# 单倍型输入格式如下
+group2</code></pre>
+<pre><code>## # A tibble: 15 × 6
+##     long   lat Location      A     B radius
+##    &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;     &lt;int&gt; &lt;int&gt;  &lt;dbl&gt;
+##  1  117.  37.5 Anhui         5     3    0.8
+##  2  119.  26.0 Fujian        8     0    0.8
+##  3  113.  23.1 Guangdong    12     0    1.2
+##  4  108.  22.5 Guangxi       9     0    0.9
+##  5  106.  26.4 Guizhou      10     4    1.4
+##  6  114.  38.0 Hebei         0     9    0.9
+##  7  114   30   Hubei         4     0    0.4
+##  8  113   28.1 Hunan        24     1    2.5
+##  9  118.  32.0 Jiangsu       8     7    1.5
+## 10  116.  28.4 Jiangxi      10     0    1  
+## 11  122.  40.5 Jilin         3     5    0.8
+## 12  104.  30.4 Sichuan      15     2    1.7
+## 13  121.  25.0 Taiwan        9     4    1.3
+## 14  102.  25.0 Yunnan       30     6    3.6
+## 15  120.  30.1 Zhejiang      6     2    0.8</code></pre>
+</div>
+<div id="可视化" class="section level2">
+<h2>可视化</h2>
+<p>利用chinamap和scatterpie包共同完成可视化，其中ggnewscale包提供了二次着色的可能。</p>
+<pre class="r"><code>suppressWarnings(suppressMessages(library(chinamap)))
+suppressWarnings(suppressMessages(library(scatterpie)))
+suppressWarnings(suppressMessages(library(ggnewscale)))
+suppressWarnings(suppressMessages(library(ggprism)))
+
+cn &lt;- get_map_china() </code></pre>
+<pre><code>## Loading required package: sp</code></pre>
+<pre><code>## Warning: package &#39;sp&#39; was built under R version 4.3.1</code></pre>
+<pre><code>## The legacy packages maptools, rgdal, and rgeos, underpinning the sp package,
+## which was just loaded, will retire in October 2023.
+## Please refer to R-spatial evolution reports for details, especially
+## https://r-spatial.org/r/2023/05/15/evolution4.html.
+## It may be desirable to make the sf package available;
+## package maintainers should consider adding sf to Suggests:.
+## The sp package is now running under evolution status 2
+##      (status 2 uses the sf package in place of rgdal)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;sp&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:scatterpie&#39;:
+## 
+##     recenter</code></pre>
+<pre><code>## Regions defined for each Polygons</code></pre>
+<pre class="r"><code>rainfall &lt;- readxl::read_excel(&quot;C:/Users/wpf/Desktop/project/Visualization/whj/rainfall2.xlsx&quot;)
+
+tmp &lt;- cn %&gt;%
+  left_join(rainfall, by = &quot;province&quot;) %&gt;%
+  as_tibble()
+
+ggplot() + 
+  geom_map(aes(long, lat, map_id = id, fill = Rain), color = &quot;black&quot;, map = tmp, data = tmp) + 
+  scale_fill_distiller(palette = &quot;RdYlBu&quot;, direction = 1) +
+  coord_quickmap() +
+  new_scale_fill() +
+  geom_scatterpie(aes(x = long, y = lat, group = Location, r = radius),
+                  data = group2,
+                  cols = LETTERS[1:2],
+                  color = NA) +
+  theme_prism(border = TRUE, base_rect_size = 1.5) +
+  theme(legend.position = c(0.9, 0.4))+
+  geom_scatterpie_legend(group2$radius,  x= 90, y = 15, labeller = function(x) {10*x}) +
+  labs(x = &quot;Longitude&quot;, y = &quot;Latitude&quot;)</code></pre>
+<pre><code>## Warning: Unknown or uninitialised column: `region`.</code></pre>
+<pre><code>## Warning in geom_map(aes(long, lat, map_id = id, fill = Rain), color = &quot;black&quot;,
+## : Ignoring unknown aesthetics: x and y</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/map-1.png" width="672" /></p>
+</div>
+</div>

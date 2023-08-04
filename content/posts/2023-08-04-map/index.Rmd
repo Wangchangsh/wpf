@@ -1,0 +1,118 @@
+---
+title: 基因单倍型的地理分布可视化
+author: changshengwang
+date: '2023-08-04'
+slug: []
+categories:
+  - Visualize
+tags:
+  - R
+  - ggplot
+---
+
+# 前言
+
+地理隔离是物种遗传多样性的基础。不同地理分布的种群往往具有不同的基因分布。我们使用水稻某基因的单倍型和中国各省份降水量数据对该基因的单倍型进行可视化。
+
+## 单倍型生成
+
+利用genehapR包将vcf转换为单倍型数据
+
+```{r vcf2hap}
+suppressWarnings(suppressMessages(library(tidyverse)))
+suppressWarnings(suppressMessages(library(geneHapR)))
+
+vcf <- import_vcf("C:/Users/wpf/Desktop/project/Popgenetic/whj/data/zfpvg.vcf")
+
+hap <- vcf2hap(vcf) %>%
+  filter(str_starts(Hap, "H")) %>%
+  mutate(Hap = if_else(Hap == "H001", "A", "B"),
+         taxa = str_replace(Accession, "\\.", "-")) %>%
+  select(taxa, Hap)
+
+# 选择中国的省份，并将部分省份合并
+
+chinapro <- c("Jiangsu", "Hunan", "Taiwan", "Jiangxi", "Guangdong", "Sichuan", "Anhui", "Zhejiang", "Yunnan", 
+              "Hubei", "Fujian", "Guizhou", "Liaoning; China", "yunnan", "Heilongjiang", "Hebei", "Guangxi", "Henan",
+              "Shanghai", "Xizang", "Shanxi", "Liaoning", "Guangxi; China", "Hainan", "Tianjin", "Hong Kong", "Beijing",
+              "Jilin")
+
+key <- tibble(
+  name = c("Jiangsu", "Hunan", "Taiwan", "Jiangxi", "Guangdong", "Sichuan", "Anhui", "Zhejiang", "Yunnan", 
+           "Hubei", "Fujian", "Guizhou", "Heilongjiang", "Hebei", "Guangxi", "Henan","Shanghai", "Xizang", 
+           "Shanxi", "Liaoning", "Hainan", "Tianjin", "Beijing", "Jilin"),
+  value = c("Jiangsu", "Hunan", "Taiwan", "Jiangxi", "Guangdong", "Sichuan", "Anhui", "Zhejiang", "Yunnan", 
+            "Hubei", "Fujian", "Guizhou", "Jilin", "Hebei", "Guangxi", NA,"Jiangsu", NA,  
+            NA, "Jilin", NA, "Hebei", "Hebei", "Jilin")
+) %>%
+  pull(value, name = name)
+
+group <- readxl::read_excel("C:/Users/wpf/Desktop/project/Popgenetic/VarMap/taxainfo.xlsx") %>%
+  select(`Cultivar ID`, Location) %>%
+  rename(taxa = `Cultivar ID`) %>%
+  filter(Location %in% chinapro) %>%
+  mutate(Location = case_when(Location == "Liaoning; China" ~ "Liaoning",
+                              Location == "yunnan" ~ "Yunnan",
+                              Location == "Guangxi; China" ~ "Guangxi",
+                              TRUE ~ Location)) %>%
+  mutate(Location = recode(Location, !!!key, .default = NA_character_)) %>%
+  na.omit() %>%
+  left_join(hap, by = "taxa") %>%
+  count(Location, Hap) %>%
+  pivot_wider(names_from = Hap,
+              values_from = n,
+              values_fill = 0)
+
+location <- group %>%
+  pull(Location)
+
+info <- readxl::read_excel("C:/Users/wpf/Desktop/project/Popgenetic/VarMap/Raw Data submission.xls", skip = 11, col_names = FALSE) %>%
+  select(3, 4, 5) %>%
+  `colnames<-`(c("Location", "lat", "long")) %>%
+  filter(Location %in% location) %>%
+  distinct(Location, .keep_all = TRUE) 
+
+group2 <- group %>%
+  left_join(info, by = "Location") %>%
+  distinct(Location, .keep_all = TRUE) %>%
+  select(long, lat, Location, A, B) %>%
+  mutate(radius = (A + B)/10,
+         long = as.numeric(long),
+         lat = as.numeric(lat))
+
+# 单倍型输入格式如下
+group2
+```
+
+## 可视化
+
+利用chinamap和scatterpie包共同完成可视化，其中ggnewscale包提供了二次着色的可能。
+
+```{r map}
+suppressWarnings(suppressMessages(library(chinamap)))
+suppressWarnings(suppressMessages(library(scatterpie)))
+suppressWarnings(suppressMessages(library(ggnewscale)))
+suppressWarnings(suppressMessages(library(ggprism)))
+
+cn <- get_map_china() 
+
+rainfall <- readxl::read_excel("C:/Users/wpf/Desktop/project/Visualization/whj/rainfall2.xlsx")
+
+tmp <- cn %>%
+  left_join(rainfall, by = "province") %>%
+  as_tibble()
+
+ggplot() + 
+  geom_map(aes(long, lat, map_id = id, fill = Rain), color = "black", map = tmp, data = tmp) + 
+  scale_fill_distiller(palette = "RdYlBu", direction = 1) +
+  coord_quickmap() +
+  new_scale_fill() +
+  geom_scatterpie(aes(x = long, y = lat, group = Location, r = radius),
+                  data = group2,
+                  cols = LETTERS[1:2],
+                  color = NA) +
+  theme_prism(border = TRUE, base_rect_size = 1.5) +
+  theme(legend.position = c(0.9, 0.4))+
+  geom_scatterpie_legend(group2$radius,  x= 90, y = 15, labeller = function(x) {10*x}) +
+  labs(x = "Longitude", y = "Latitude")
+```
